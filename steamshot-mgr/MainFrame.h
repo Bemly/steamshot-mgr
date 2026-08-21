@@ -20,6 +20,7 @@ protected:
     afx_msg void OnSelChangeGame();
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg void OnRefresh();
+    afx_msg void OnImport();
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -27,6 +28,7 @@ private:
     GameListCtrl    m_gameList;
     ThumbGridView   m_grid;
     CStatic         m_header;     // 顶部标题栏
+    CButton         m_btnImport;  // 顶部右侧"导入"按钮
 
     static constexpr int kListWidth  = 260; // 左栏宽
     static constexpr int kHeaderH    = 40;  // 顶部栏高

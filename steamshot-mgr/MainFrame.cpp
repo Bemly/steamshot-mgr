@@ -1,5 +1,6 @@
 #include "MainFrame.h"
 #include "ui/Theme.h"
+#include "ui/ImportDlg.h"
 #include "resource.h"
 
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
@@ -9,6 +10,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
     ON_WM_CTLCOLOR()
     ON_LBN_SELCHANGE(IDC_GAME_LIST, OnSelChangeGame)
     ON_COMMAND(ID_VIEW_REFRESH, OnRefresh)
+    ON_BN_CLICKED(IDC_BTN_IMPORT, OnImport)
 END_MESSAGE_MAP()
 
 CMainFrame::CMainFrame()
@@ -30,6 +32,11 @@ int CMainFrame::OnCreate(LPCREATESTRUCT cs)
     m_header.Create(L"", WS_CHILD | WS_VISIBLE | SS_LEFT,
                     CRect(0, 0, 0, 0), this, IDC_HEADER);
     m_header.SetFont(&Theme::FontBold());
+
+    // 顶部右侧"导入"按钮
+    m_btnImport.Create(L"导入…", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                       CRect(0, 0, 0, 0), this, IDC_BTN_IMPORT);
+    m_btnImport.SetFont(&Theme::Font());
 
     // 左侧游戏列表(自绘)
     m_gameList.Create(WS_CHILD | WS_VISIBLE | WS_BORDER | LBS_OWNERDRAWFIXED |
@@ -79,9 +86,35 @@ void CMainFrame::LayoutChildren()
     CRect rc;
     GetClientRect(rc);
 
-    m_header.MoveWindow(0, 0, rc.Width(), kHeaderH);
+    // 标题文本让出右侧按钮位置
+    int btnW = 90, btnH = 26, btnPad = 8;
+    m_header.MoveWindow(0, 0, rc.Width() - btnW - btnPad * 2, kHeaderH);
+    m_btnImport.MoveWindow(rc.Width() - btnW - btnPad,
+                           (kHeaderH - btnH) / 2, btnW, btnH);
+
     m_gameList.MoveWindow(0, kHeaderH, kListWidth, rc.Height() - kHeaderH);
     m_grid.MoveWindow(kListWidth, kHeaderH, rc.Width() - kListWidth, rc.Height() - kHeaderH);
+}
+
+void CMainFrame::OnImport()
+{
+    int sel = m_gameList.GetCurSel();
+    if (sel < 0 || static_cast<size_t>(sel) >= m_store.Games().size())
+    {
+        MessageBox(L"请先在左侧选择一个游戏。", L"导入", MB_ICONINFORMATION);
+        return;
+    }
+
+    const GameShots& game = m_store.Games()[sel];
+    CString displayName = game.Name.IsEmpty() ? CString(L"App") + CString(L" ") +
+                          std::to_wstring(game.AppId).c_str() : game.Name;
+    if (game.Name.IsEmpty())
+        displayName.Format(L"App %u", game.AppId);
+    CImportDlg dlg(game.Dir, displayName, this);
+    if (dlg.DoModal() == IDOK && dlg.Imported())
+    {
+        OnRefresh(); // 重新扫描,显示新导入的截图
+    }
 }
 
 void CMainFrame::OnSize(UINT type, int cx, int cy)

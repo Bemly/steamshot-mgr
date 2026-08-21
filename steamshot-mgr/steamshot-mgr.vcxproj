@@ -89,10 +89,13 @@
     <ClInclude Include="core\SteamLocator.h" />
     <ClInclude Include="core\GameCatalog.h" />
     <ClInclude Include="core\ScreenshotStore.h" />
+    <ClInclude Include="core\ImageImporter.h" />
+    <ClInclude Include="core\ShotNameGen.h" />
     <ClInclude Include="ui\Theme.h" />
     <ClInclude Include="ui\GameListCtrl.h" />
     <ClInclude Include="ui\ThumbGridView.h" />
     <ClInclude Include="ui\PreviewDlg.h" />
+    <ClInclude Include="ui\ImportDlg.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="steamshot-mgr.cpp" />
@@ -101,10 +104,13 @@
     <ClCompile Include="core\SteamLocator.cpp" />
     <ClCompile Include="core\GameCatalog.cpp" />
     <ClCompile Include="core\ScreenshotStore.cpp" />
+    <ClCompile Include="core\ImageImporter.cpp" />
+    <ClCompile Include="core\ShotNameGen.cpp" />
     <ClCompile Include="ui\Theme.cpp" />
     <ClCompile Include="ui\GameListCtrl.cpp" />
     <ClCompile Include="ui\ThumbGridView.cpp" />
     <ClCompile Include="ui\PreviewDlg.cpp" />
+    <ClCompile Include="ui\ImportDlg.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="steamshot-mgr.rc" />
