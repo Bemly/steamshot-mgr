@@ -1,0 +1,20 @@
+# Visual Studio 构建产物
+.vs/
+x64/
+Debug/
+Release/
+*.user
+*.suo
+*.opensdf
+*.sdf
+ipch/
+*.tlog
+*.log
+*.idb
+*.pdb
+*.ilk
+*.obj
+*.pch
+*.aps
+*.ncb
+*.opendb
