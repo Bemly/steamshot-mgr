@@ -79,7 +79,7 @@ jobs:
           $tag  = "v$date"
           $n    = 2
           # 标签已存在则追加序号: v26.08.22.2、v26.08.22.3 …
-          while (& git ls-remote --tags origin "refs/tags/$tag" | Out-String).Trim() -ne '') {
+          while (((& git ls-remote --tags origin "refs/tags/$tag") | Out-String).Trim() -ne '') {
             $tag = "v$date.$n"
             $n++
           }
