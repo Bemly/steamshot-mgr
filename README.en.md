@@ -4,6 +4,12 @@ English | [中文](README.md)
 
 A Steam screenshot manager written in **pure MFC** (no third-party UI libraries), styled after the built-in screenshot manager of the Steam client (dark theme). It browses all local Steam screenshots grouped by game and sorted by time, and ships with **image import** (format conversion / compression / auto-naming) and screenshot deletion.
 
+## Screenshots
+
+| Full-size Preview | Browse & Import | Import List (Convert & Compress) |
+|:---:|:---:|:---:|
+| ![Full-size preview](docs/20260822194902_1.jpg) | ![Browse & import](docs/20260822194916_1.jpg) | ![Import list](docs/20260822195053_1.jpg) |
+
 ## Read/Write Policy
 
 | Operation | Policy |
