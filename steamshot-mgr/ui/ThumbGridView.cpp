@@ -215,7 +215,8 @@ void ThumbGridView::OnPaint()
                 RequestThumb(index);
             }
 
-            // 云端状态徽标:已上传 → 缩略图右下角云朵符号(☁ U+2601)
+            // 云端状态徽标:仅已上传的图在缩略图右下角画云朵(☁ U+2601),
+            // 未上传/未登记不显示任何标记(按需求精简)
             if (shot.Cloud == CloudState::Uploaded)
             {
                 constexpr int kBadge = 22; // 徽标方块边长
@@ -227,30 +228,6 @@ void ThumbGridView::OnPaint()
                 dcMem.SelectObject(&Theme::FontBadge());
                 dcMem.SetTextColor(Theme::Accent());
                 dcMem.DrawText(L"\u2601", rcBadge, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            }
-            else if (shot.Cloud == CloudState::NotUploaded)
-            {
-                // 未上传:同位置橙色上箭头(↑ U+2191)
-                constexpr int kBadge = 22;
-                CRect rcBadge(rcThumb.right - kBadge - 4, rcThumb.bottom - kBadge - 4,
-                              rcThumb.right - 4, rcThumb.bottom - 4);
-                CBrush badgeBg(RGB(0x10, 0x14, 0x1A));
-                dcMem.FillRect(rcBadge, &badgeBg);
-                dcMem.SelectObject(&Theme::FontBadge());
-                dcMem.SetTextColor(Theme::Orange());
-                dcMem.DrawText(L"\u2191", rcBadge, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-            }
-            else if (shot.Cloud == CloudState::Orphan)
-            {
-                // 未登记(孤儿):灰色问号,提示启动 Steam 后自动索引(docs §5)
-                constexpr int kBadge = 22;
-                CRect rcBadge(rcThumb.right - kBadge - 4, rcThumb.bottom - kBadge - 4,
-                              rcThumb.right - 4, rcThumb.bottom - 4);
-                CBrush badgeBg(RGB(0x10, 0x14, 0x1A));
-                dcMem.FillRect(rcBadge, &badgeBg);
-                dcMem.SelectObject(&Theme::FontBadge());
-                dcMem.SetTextColor(Theme::Gray());
-                dcMem.DrawText(L"?", rcBadge, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
 
             // 时间标签(由文件名时间戳生成)
