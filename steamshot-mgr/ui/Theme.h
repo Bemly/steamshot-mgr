@@ -21,6 +21,8 @@ namespace Theme
     inline COLORREF Text()        { return RGB(0xC7, 0xD5, 0xE0); }
     inline COLORREF TextDim()     { return RGB(0x8F, 0x98, 0xA0); }
     inline COLORREF Selection()   { return RGB(0x35, 0x5E, 0x80); }
+    inline COLORREF Orange()      { return RGB(0xE0, 0x7C, 0x24); } // 未上传徽标(docs §7)
+    inline COLORREF Gray()        { return RGB(0x6A, 0x74, 0x7E); } // 孤儿/未知徽标
 
     // 各区域共用的画刷/字体(惰性创建,进程生命周期内复用)
     CBrush& BkBrush();        // 主背景画刷
@@ -28,4 +30,5 @@ namespace Theme
     CFont&  Font();           // 常规文字
     CFont&  FontBold();       // 粗体标题
     CFont&  FontSmall();      // 小号说明文字
+    CFont&  FontBadge();      // 徽标字符(云朵等符号字形)
 }

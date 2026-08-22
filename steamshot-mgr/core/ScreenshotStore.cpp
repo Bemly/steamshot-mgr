@@ -60,6 +60,20 @@ int ScreenshotStore::TotalCount() const
 
 void ScreenshotStore::ScanUserDir(const CString& remoteDir)
 {
+    // 从 remoteDir 推导用户与元数据库:
+    //   remoteDir = <root>\userdata\<uid>\760\remote
+    //   vdf 在 <uid>\760\ 一级,不在 remote 内(docs §2)
+    if (remoteDir.GetLength() <= 7 ||
+        remoteDir.Right(7).CompareNoCase(L"\\remote") != 0)
+        return; // 路径形态不符
+    CString dir760  = remoteDir.Left(remoteDir.GetLength() - 7); // ...\userdata\<uid>\760
+    int uidPos      = dir760.ReverseFind(L'\\');
+    CString userId  = dir760.Mid(uidPos + 1);
+    CString vdfPath = dir760 + L"\\screenshots.vdf";
+
+    ScreenshotCloudStatus cloud;
+    bool vdfLoaded = cloud.LoadForUser(userId, vdfPath);
+
     CString mask = remoteDir + L"\\*";
     WIN32_FIND_DATA fd{};
     HANDLE hFind = ::FindFirstFile(mask, &fd);
@@ -80,7 +94,7 @@ void ScreenshotStore::ScanUserDir(const CString& remoteDir)
         GameShots game;
         game.AppId = appId;
         game.Dir   = remoteDir + L"\\" + fd.cFileName + L"\\screenshots";
-        ScanGameDir(game.Dir, appId, game);
+        ScanGameDir(game.Dir, appId, game, userId, cloud, vdfLoaded);
 
         if (!game.Shots.empty())
             m_games.push_back(std::move(game));
@@ -89,7 +103,9 @@ void ScreenshotStore::ScanUserDir(const CString& remoteDir)
     ::FindClose(hFind);
 }
 
-void ScreenshotStore::ScanGameDir(const CString& screenshotsDir, unsigned int appId, GameShots& game)
+void ScreenshotStore::ScanGameDir(const CString& screenshotsDir, unsigned int appId,
+                                  GameShots& game, const CString& userId,
+                                  const ScreenshotCloudStatus& cloud, bool vdfLoaded)
 {
     CString mask = screenshotsDir + L"\\*.jpg";
     WIN32_FIND_DATA fd{};
@@ -116,6 +132,22 @@ void ScreenshotStore::ScanGameDir(const CString& screenshotsDir, unsigned int ap
         if (!ParseTimestamp(item.FileName, item.Timestamp))
             continue; // 文件名不符合时间戳格式,跳过
 
+        // 云端状态:磁盘为主表左连 vdf(§5),按 basename 小写比对
+        std::wstring lower(item.FileName);
+        for (auto& c : lower)
+            c = towlower(c);
+        const CloudEntry* entry = vdfLoaded ? cloud.Query(userId, CString(lower.c_str())) : nullptr;
+        if (entry)
+        {
+            item.Cloud          = entry->State;
+            item.PublishedFileId = entry->PublishedFileId;
+        }
+        else
+        {
+            // vdf 已加载但无此 basename → 未登记(孤儿);vdf 都没有 → Unknown
+            item.Cloud = vdfLoaded ? CloudState::Orphan : CloudState::Unknown;
+        }
+
         game.Shots.push_back(std::move(item));
     } while (::FindNextFile(hFind, &fd));
 
@@ -124,6 +156,13 @@ void ScreenshotStore::ScanGameDir(const CString& screenshotsDir, unsigned int ap
     // 按时间降序:最新的在前面
     std::sort(game.Shots.begin(), game.Shots.end(),
               [](const ScreenshotItem& a, const ScreenshotItem& b) { return a.Timestamp > b.Timestamp; });
+
+    // 云端计数(供列表小字展示)
+    for (const auto& s : game.Shots)
+    {
+        if (s.Cloud == CloudState::Uploaded)       ++game.UploadedCount;
+        else if (s.Cloud == CloudState::NotUploaded) ++game.NotUploadedCount;
+    }
 }
 
 bool ScreenshotStore::ParseTimestamp(const CString& fileName, COleDateTime& out)

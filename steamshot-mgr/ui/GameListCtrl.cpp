@@ -59,16 +59,31 @@ void GameListCtrl::DrawItem(LPDRAWITEMSTRUCT lpDis)
     dc.SetTextColor(selected ? Theme::Accent() : Theme::Text());
     dc.DrawText(title, rcTitle, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_VCENTER);
 
-    // 截图数量 + AppID(名称未知时标题已是 "App <id>",小字不再重复)
+    // 截图数量 + AppID + 云端上传统计
+    // 格式: "<AppID> · N 张截图" 或 "AppID · N 张 · ☁X ↑Y"
     CString count;
     if (game.Name.IsEmpty())
         count.Format(L"%d 张截图", static_cast<int>(game.Shots.size()));
     else
         count.Format(L"%u  ·  %d 张截图", game.AppId, static_cast<int>(game.Shots.size()));
+
+    // 有混合状态时追加 ☁已传/↑未传 计数(全部已传或全未传时省略,保持简洁)
+    const int total = static_cast<int>(game.Shots.size());
+    if (game.UploadedCount > 0 && game.NotUploadedCount > 0)
+    {
+        CString cloud;
+        cloud.Format(L"  ·  \u2601%d \u2191%d", game.UploadedCount, game.NotUploadedCount);
+        count += cloud;
+    }
+    else if (game.UploadedCount == total && total > 0)
+    {
+        count += L"  ·  全部\u2601";
+    }
+
     CRect rcCount(rc.left + 12, rc.top + 24, rc.right - 8, rc.bottom - 2);
     dc.SelectObject(&Theme::FontSmall());
     dc.SetTextColor(Theme::TextDim());
-    dc.DrawText(count, rcCount, DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+    dc.DrawText(count, rcCount, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
 
     // 底部 1px 分隔线
     CPen pen(PS_SOLID, 1, RGB(0x10, 0x14, 0x1A));

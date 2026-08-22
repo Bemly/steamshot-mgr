@@ -4,6 +4,7 @@
 #include <atlstr.h>
 #include <atlcomtime.h>
 #include <vector>
+#include "ScreenshotCloudStatus.h"
 
 // ---------------------------------------------------------------------------
 // 数据结构
@@ -18,6 +19,8 @@ struct ScreenshotItem
     COleDateTime Timestamp;     // 由文件名解析出的拍摄时间
     int          Width  = 0;    // 分辨率(读图后填充,可选)
     int          Height = 0;
+    CloudState   Cloud  = CloudState::Unknown;   // 云端上传状态(离线判定)
+    CString      PublishedFileId;                // 已上传时的 Workshop ID
 };
 
 // 一个游戏(AppID)的截图集合
@@ -27,6 +30,8 @@ struct GameShots
     CString                    Name;       // 游戏名;未知时由 UI 回退显示 "App <id>"
     CString                    Dir;        // screenshots 目录
     std::vector<ScreenshotItem> Shots;     // 已按时间降序(最新在前)
+    int UploadedCount   = 0;    // ☁ 已上传张数
+    int NotUploadedCount = 0;   // 未上传张数(Unknown/Orphan 不计入)
 };
 
 // ---------------------------------------------------------------------------
@@ -54,7 +59,9 @@ private:
     std::vector<GameShots> m_games;
 
     void ScanUserDir(const CString& remoteDir);
-    void ScanGameDir(const CString& screenshotsDir, unsigned int appId, GameShots& game);
+    void ScanGameDir(const CString& screenshotsDir, unsigned int appId,
+                     GameShots& game, const CString& userId,
+                     const ScreenshotCloudStatus& cloud, bool vdfLoaded);
 
     // 从文件名解析时间戳,如 "20260313162413_1.jpg" → 2026-03-13 16:24:13
     static bool ParseTimestamp(const CString& fileName, COleDateTime& out);

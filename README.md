@@ -23,9 +23,10 @@
 - **扫描截图**:遍历所有用户的 `760\remote\<AppID>\screenshots\`,按游戏分组统计。
 - **时间戳排序**:从文件名(`YYYYMMDDHHMMSS_N.jpg`)解析拍摄时间,**最新在前**,缩略图下方标注 `YYYY-MM-DD HH:MM:SS`。
 - **游戏名映射(三级离线链路)**:`appmanifest_*.acf`(已安装) → `appcache/appinfo.vdf` v41 二进制(未安装但曾拥有,按截图 AppID 集合按需解析) → `screenshots.vdf shortcutnames`(非 Steam 游戏),全部未命中回退 `App <AppID>`;游戏列表小字注明 `AppID · N 张截图`。详见 [docs/offline-appid-mapping.md](docs/offline-appid-mapping.md)。
+- **云端上传状态(离线判定)**:读取 `userdata\<uid>\760\screenshots.vdf`,按 `publishedfileid 非空 且 hscreenshot ≠ 哨兵值` 判定已上传(`hscreenshot` 为超 INT64_MAX 大数,全程字符串比较)。缩略图右下角徽标:蓝 **☁** 已上传 / 橙 **↑** 未上传 / 灰 **?** 未登记;列表小字显示 `☁X ↑Y`(全部已上传显示"全部☁");预览底部显示状态与 Workshop pid。详见 [docs/offline-cloud-upload-status.md](docs/offline-cloud-upload-status.md)。
 - **虚拟化网格**:不一次性加载数千张图,仅解码可视区;后台线程解码 + LRU 内存缓存(上限 300 张),切换游戏自动作废旧任务。
 - **缩略图策略**:优先用 Steam 自带 `thumbnails\` 缩略图,缺失或损坏时回退解码原图。
-- **全尺寸预览**:双击打开,等比适配窗口,`←`/`→` 或 `A`/`D` 或点击左右半区切换,`Esc` 关闭;底部显示时间戳、文件名、原图分辨率、序号。
+- **全尺寸预览**:双击打开,等比适配窗口,`←`/`→` 或 `A`/`D` 或点击左右半区切换,`Esc` 关闭;底部显示时间戳、文件名、原图分辨率、序号、云端上传状态。
 - **右键菜单**:在资源管理器中定位该文件(`explorer /select`)、删除此截图及缩略图(二次确认,删除后自动刷新并保持当前游戏选中)。
 
 ### 导入

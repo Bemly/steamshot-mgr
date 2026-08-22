@@ -39,11 +39,23 @@ void CPreviewDlg::LoadCurrent()
     }
     else
     {
-        m_status.Format(L"%s   ·   %s   ·   %d × %d   ·   %zu / %zu",
+        // 云端状态段:已上传(蓝☁)/未上传(橙↑)/孤儿(?)/未知
+        CString cloud;
+        switch (shot.Cloud)
+        {
+        case CloudState::Uploaded:    cloud.Format(L"   ·   \u2601 已上传 (pid %s)",
+                                                   static_cast<LPCTSTR>(shot.PublishedFileId)); break;
+        case CloudState::NotUploaded: cloud  = L"   ·   ↑ 未上传"; break;
+        case CloudState::Orphan:      cloud  = L"   ·   ? 未登记"; break;
+        default:                      cloud  = L"   ·   状态未知"; break;
+        }
+
+        m_status.Format(L"%s   ·   %s   ·   %d × %d   ·   %zu / %zu%s",
                         static_cast<LPCTSTR>(shot.Timestamp.Format(L"%Y-%m-%d %H:%M:%S")),
                         static_cast<LPCTSTR>(shot.FileName),
                         m_image.GetWidth(), m_image.GetHeight(),
-                        m_index + 1, m_shots.size());
+                        m_index + 1, m_shots.size(),
+                        static_cast<LPCTSTR>(cloud));
     }
     SetWindowText(shot.FileName);
     Invalidate(FALSE);

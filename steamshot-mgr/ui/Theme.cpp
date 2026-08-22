@@ -2,8 +2,8 @@
 
 namespace
 {
-    // 创建 Steam 风格字体;Segoe UI 为 Win11 系统字体
-    CFont* MakeFont(int pointSize, int weight)
+    // 创建 Steam 风格字体;faceName 缺省 Segoe UI(Win11 系统字体)
+    CFont* MakeFont(int pointSize, int weight, LPCWSTR faceName = L"Segoe UI")
     {
         auto* font = new CFont();
         HDC hdc = ::GetDC(nullptr);
@@ -13,7 +13,7 @@ namespace
         int lfHeight = -MulDiv(pointSize, dpi, 72);
         font->CreateFont(lfHeight, 0, 0, 0, weight, FALSE, FALSE, 0,
                          DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+                         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, faceName);
         return font;
     }
 }
@@ -45,5 +45,12 @@ CFont& Theme::FontBold()
 CFont& Theme::FontSmall()
 {
     static CFont* font = MakeFont(8, FW_NORMAL);
+    return *font;
+}
+
+CFont& Theme::FontBadge()
+{
+    // 徽标符号字体:☁(U+2601)等字形在 Segoe UI Symbol 中
+    static CFont* font = MakeFont(11, FW_BOLD, L"Segoe UI Symbol");
     return *font;
 }
