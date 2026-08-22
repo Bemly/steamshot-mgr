@@ -21,3 +21,4 @@ ipch/
 
 # 离线映射验证 CSV(可再生的临时产物,不入库)
 offline_appids*.csv
+/steamshot-mgr-win-x64.zip
