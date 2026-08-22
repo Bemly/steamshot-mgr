@@ -6,8 +6,8 @@
 #
 # 流程: 探测运行器上可用的 VC 工具集与 Windows SDK
 #       → MSBuild 编译 Release|x64(参数覆盖工程内硬编码版本)
-#       → 压缩 exe 为 zip
-#       → 以 v0.1.<run_number> 为标签创建 Release 并上传产物
+#       → 以 v<yy.mm.dd> 为标签创建 Release,直接附 exe 单文件
+#         同一天重复构建时标签自动追加序号: v26.08.22、v26.08.22.2 …
 #
 # 说明: 工程文件里硬编码了 v145 / 10.0.26100.0,但 MSBuild 的
 #       全局属性(-p:)优先级高于工程设置,因此 CI 可直接覆盖,
@@ -70,6 +70,22 @@ jobs:
           Add-Content $env:GITHUB_OUTPUT "toolset=$($toolsetDir.Name)"
           Add-Content $env:GITHUB_OUTPUT "sdk=$($sdkDir.Name)"
 
+      - name: 计算 yy.mm.dd 版本号(同日冲突自动加序号)
+        id: ver
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $date = Get-Date -Format 'yy.MM.dd'   # 例: 26.08.22
+          $tag  = "v$date"
+          $n    = 2
+          # 标签已存在则追加序号: v26.08.22.2、v26.08.22.3 …
+          while (& git ls-remote --tags origin "refs/tags/$tag" | Out-String).Trim() -ne '') {
+            $tag = "v$date.$n"
+            $n++
+          }
+          Write-Host "版本标签: $tag"
+          Add-Content $env:GITHUB_OUTPUT "tag=$tag"
+
       - name: 构建(Release | x64)
         shell: pwsh
         run: |
@@ -79,28 +95,24 @@ jobs:
             "/p:WindowsTargetPlatformVersion=${{ steps.probe.outputs.sdk }}"
           if ($LASTEXITCODE -ne 0) { throw "MSBuild 失败,退出码 $LASTEXITCODE" }
 
-      - name: 打包
+      - name: 检查产物
         shell: pwsh
         run: |
           $exe = 'x64\Release\steamshot-mgr.exe'
           if (-not (Test-Path $exe)) { throw "构建产物不存在: $exe" }
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item $exe dist\
-          Compress-Archive -Path dist\steamshot-mgr.exe `
-                           -DestinationPath dist\steamshot-mgr-x64.zip -Force
-          Write-Host "打包完成: dist\steamshot-mgr-x64.zip"
+          Write-Host ("产物大小: {0:N1} MB" -f ((Get-Item $exe).Length / 1MB))
 
-      - name: 发布 Release
+      - name: 发布 Release(exe 单文件)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: steamshot-mgr v0.1.${{ github.run_number }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: steamshot-mgr ${{ steps.ver.outputs.tag }}
           body: |
             自动构建版本,对应提交 ${{ github.sha }}
 
             ### 更新内容
             ${{ github.event.head_commit.message }}
 
-            ### 下载
-            - `steamshot-mgr-x64.zip`: 解压后直接运行(需系统已安装 VS2026 MFC 运行库)
-          files: dist/steamshot-mgr-x64.zip
+            ### 使用
+            下载 `steamshot-mgr.exe` 直接运行(需系统已安装 VS2026 MFC 运行库)
+          files: x64/Release/steamshot-mgr.exe
