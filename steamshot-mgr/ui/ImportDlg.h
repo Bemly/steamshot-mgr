@@ -121,6 +121,6 @@ public:
 
 protected:
     BOOL OnInitDialog() override;
-    afx_msg void OnDtpKillFocus(NMHDR* hdr, LRESULT* res);
+    void OnOK() override;   // 确定前把控件新值写回 m_time(否则关闭后仍是旧值)
     DECLARE_MESSAGE_MAP()
 };

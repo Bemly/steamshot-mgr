@@ -659,3 +659,13 @@ BOOL CDateEditDlg::OnInitDialog()
     }
     return TRUE;
 }
+
+void CDateEditDlg::OnOK()
+{
+    // 关键:确定时把控件当前值读回 m_time,否则调用方拿到的仍是进入时的旧时间
+    auto* dtp = static_cast<CDateTimeCtrl*>(GetDlgItem(IDC_IMP_DATE));
+    COleDateTime t;
+    if (dtp && dtp->GetTime(t) == GDT_VALID)
+        m_time = t;
+    EndDialog(IDOK);
+}
