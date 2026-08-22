@@ -7,10 +7,6 @@
 BEGIN_MESSAGE_MAP(CImportDlg, CDialog)
     ON_WM_DESTROY()
     ON_WM_DROPFILES()
-    ON_WM_LBUTTONDOWN()
-    ON_WM_LBUTTONUP()
-    ON_WM_MOUSEMOVE()
-    ON_WM_LBUTTONDBLCLK()
     ON_WM_PAINT()
     ON_WM_ERASEBKGND()
     ON_WM_SIZE()
@@ -20,6 +16,7 @@ BEGIN_MESSAGE_MAP(CImportDlg, CDialog)
     ON_BN_CLICKED(IDC_BTN_BROWSE, OnBnClickedBrowse)
     ON_BN_CLICKED(IDC_BTN_DONE, OnBnClickedDone)
     ON_BN_CLICKED(IDCANCEL, OnBnClickedCancel)
+    ON_LBN_DBLCLK(IDC_IMP_LIST, OnListDblClk)
     ON_MESSAGE(WM_IMPORT_DONE, OnImportDone)
 END_MESSAGE_MAP()
 
@@ -352,24 +349,6 @@ CRect CImportDlg::FileNameRect(int index) const
     return rc;
 }
 
-int CImportDlg::ItemFromPoint(CPoint pt) const
-{
-    // 客户端坐标 → 列表内坐标
-    CRect rcList;
-    m_list.GetWindowRect(rcList);
-    ScreenToClient(rcList);
-    if (!rcList.PtInRect(pt))
-        return -1;
-    CPoint lp = pt;
-    m_list.ScreenToClient(&lp); // 需要屏幕坐标,这里换算
-    // 直接用行高估算 + 滚动
-    BOOL outside = FALSE;
-    int idx = m_list.ItemFromPoint(lp, outside);
-    if (outside || idx < 0 || idx >= m_list.GetCount())
-        return -1;
-    return idx;
-}
-
 void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
 {
     int index = lpDis->itemID;
@@ -386,16 +365,6 @@ void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
     // 背景
     CBrush bk(sel ? Theme::Selection() : Theme::Panel());
     dc.FillRect(rc, &bk);
-
-    // 拖拽插入指示线
-    if (m_dragging && index == m_dropIndex)
-    {
-        CPen pen(PS_SOLID, 2, Theme::Accent());
-        CPen* op = dc.SelectObject(&pen);
-        dc.MoveTo(rc.left, rc.top);
-        dc.LineTo(rc.right, rc.top);
-        dc.SelectObject(op);
-    }
 
     dc.SetBkMode(TRANSPARENT);
 
@@ -474,97 +443,37 @@ void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
 }
 
 // ---------------------------------------------------------------------------
-// 拖拽排序
+// 双击文件名 → 日期编辑(列表 LBN_DBLCLK 通知)
 // ---------------------------------------------------------------------------
 
-void CImportDlg::OnLButtonDown(UINT flags, CPoint pt)
+void CImportDlg::OnListDblClk()
 {
-    // 点在列表上才可能拖动;双击编辑在 DblClk 处理
-    int idx = ItemFromPoint(pt);
-    if (idx >= 0)
+    // 列表双击通知(LBN_DBLCLK):用当前双击位置判断命中行与文件名区域
+    DWORD pos = ::GetMessagePos();
+    CPoint screenPt(GET_X_LPARAM(pos), GET_Y_LPARAM(pos));
+    CPoint listPt = screenPt;
+    m_list.ScreenToClient(&listPt);
+
+    BOOL outside = FALSE;
+    int idx = m_list.ItemFromPoint(listPt, outside);
+
+    wchar_t dbg[256];
+    swprintf_s(dbg, L"[导入] 列表双击: listPt=(%d,%d) idx=%d outside=%d\n",
+               listPt.x, listPt.y, idx, outside ? 1 : 0);
+    ::OutputDebugString(dbg);
+
+    if (outside || idx < 0 || idx >= static_cast<int>(m_items.size()))
+        return;
+
+    if (FileNameRect(idx).PtInRect(listPt))
     {
-        m_dragIndex = idx;
-        m_downPt = pt;
-        m_dragging = false; // 超过阈值才算拖动
-        SetCapture();
+        ::OutputDebugString(L"[导入] 命中文件名区域,进入日期编辑\n");
+        BeginDateEdit(idx);
     }
-    CDialog::OnLButtonDown(flags, pt);
-}
-
-void CImportDlg::OnMouseMove(UINT flags, CPoint pt)
-{
-    if (m_dragIndex >= 0 && (flags & MK_LBUTTON))
+    else
     {
-        if (!m_dragging && (abs(pt.x - m_downPt.x) > 4 || abs(pt.y - m_downPt.y) > 4))
-            m_dragging = true;
-
-        if (m_dragging)
-        {
-            int over = ItemFromPoint(pt);
-            if (over != m_dropIndex && over >= 0)
-            {
-                m_dropIndex = over;
-                m_list.Invalidate(FALSE);
-            }
-        }
+        ::OutputDebugString(L"[导入] 未命中文件名区域\n");
     }
-    CDialog::OnMouseMove(flags, pt);
-}
-
-void CImportDlg::OnLButtonUp(UINT flags, CPoint pt)
-{
-    if (m_dragIndex >= 0)
-    {
-        ::ReleaseCapture();
-        if (m_dragging && m_dropIndex >= 0 && m_dropIndex != m_dragIndex)
-        {
-            // 重排 m_items
-            auto moved = std::move(m_items[m_dragIndex]);
-            m_items.erase(m_items.begin() + m_dragIndex);
-            int target = m_dropIndex;
-            if (target > m_dragIndex)
-                --target; // 删除后位置前移
-            m_items.insert(m_items.begin() + target, std::move(moved));
-
-            // 重建列表占位
-            m_list.ResetContent();
-            for (size_t i = 0; i < m_items.size(); ++i)
-                m_list.AddString(L"");
-        }
-        m_dragIndex = -1;
-        m_dropIndex = -1;
-        m_dragging = false;
-        m_list.Invalidate(FALSE);
-    }
-    CDialog::OnLButtonUp(flags, pt);
-}
-
-// ---------------------------------------------------------------------------
-// 双击文件名 → 日期编辑
-// ---------------------------------------------------------------------------
-
-void CImportDlg::OnLButtonDblClk(UINT flags, CPoint pt)
-{
-    int idx = ItemFromPoint(pt);
-    if (idx >= 0)
-    {
-        // 命中文件名区域才进入编辑
-        CRect rcName = FileNameRect(idx);
-        CPoint lp = pt;
-        // FileNameRect 返回的是列表客户区相对坐标,需要换算
-        CRect rcListScreen;
-        m_list.GetWindowRect(rcListScreen);
-        CPoint screenPt = pt;
-        ClientToScreen(&screenPt);
-        CPoint listPt = screenPt;
-        m_list.ScreenToClient(&listPt);
-        if (rcName.PtInRect(listPt))
-        {
-            BeginDateEdit(idx);
-            return;
-        }
-    }
-    CDialog::OnLButtonDblClk(flags, pt);
 }
 
 void CImportDlg::BeginDateEdit(int index)
@@ -583,8 +492,10 @@ void CImportDlg::BeginDateEdit(int index)
 
     if (!m_dateCtrlActive)
     {
-        m_dateCtrl.Create(WS_CHILD | WS_VISIBLE | DTS_SHORTDATECENTURYFORMAT | DTS_UPDOWN,
+        // 用自定义格式同时显示日期与时间(默认样式 + SetFormat)
+        m_dateCtrl.Create(WS_CHILD | WS_VISIBLE | DTS_UPDOWN,
                           rcDlg, this, IDC_IMP_DATE);
+        m_dateCtrl.SetFormat(L"yyyy-MM-dd HH:mm:ss");
         m_dateCtrl.SetFont(&Theme::Font());
         m_dateCtrlActive = true;
     }
@@ -626,6 +537,37 @@ void CImportDlg::CancelDateEdit()
         m_editIndex = -1;
         m_list.Invalidate(FALSE);
     }
+}
+
+BOOL CImportDlg::PreTranslateMessage(MSG* pMsg)
+{
+    // 日期编辑激活时: Enter 提交, Esc 取消, 点击控件外提交
+    if (m_dateCtrlActive && m_editIndex >= 0)
+    {
+        if (pMsg->message == WM_KEYDOWN)
+        {
+            if (pMsg->wParam == VK_RETURN)
+            {
+                CommitDateEdit();
+                return TRUE;
+            }
+            if (pMsg->wParam == VK_ESCAPE)
+            {
+                CancelDateEdit();
+                return TRUE;
+            }
+        }
+        else if (pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_LBUTTONDBLCLK)
+        {
+            // 点击落在日期控件之外则提交
+            CPoint pt(pMsg->pt);
+            CRect rcDate;
+            m_dateCtrl.GetWindowRect(rcDate);
+            if (!rcDate.PtInRect(pt))
+                CommitDateEdit();
+        }
+    }
+    return CDialog::PreTranslateMessage(pMsg);
 }
 
 // ---------------------------------------------------------------------------

@@ -20,3 +20,5 @@
 
 // 命令 ID
 #define ID_VIEW_REFRESH     40001
+#define ID_CTX_OPEN_EXPLORER 40002   // 右键: 资源管理器打开
+#define ID_CTX_DELETE        40003   // 右键: 删除图片及缩略图

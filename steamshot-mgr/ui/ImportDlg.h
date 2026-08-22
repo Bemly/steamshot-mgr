@@ -17,8 +17,7 @@
 // 布局:
 //   顶部提示条: "拖入图片到下方列表,或点击 [选取图片]"
 //   中部:     自绘列表(缩略图 | 生成文件名 | 大小 | 警告图标)
-//             · 支持从资源管理器拖入文件
-//             · 支持行内拖拽排序
+//             · 支持从资源管理器拖入文件(DragAcceptFiles)
 //             · 双击文件名 → 原位弹出 CDateTimeCtrl 改日期(即改文件名)
 //   底部:     [完成]  [取消]
 //
@@ -46,10 +45,7 @@ protected:
     afx_msg void OnBnClickedBrowse();
     afx_msg void OnBnClickedDone();
     afx_msg void OnBnClickedCancel();
-    afx_msg void OnLButtonDown(UINT flags, CPoint pt);
-    afx_msg void OnLButtonUp(UINT flags, CPoint pt);
-    afx_msg void OnMouseMove(UINT flags, CPoint pt);
-    afx_msg void OnLButtonDblClk(UINT flags, CPoint pt);
+    afx_msg void OnListDblClk();   // 列表 LBN_DBLCLK 通知(双击文件名改日期)
     afx_msg void OnPaint();
     afx_msg BOOL OnEraseBkgnd(CDC* pDC);
     afx_msg void OnSize(UINT type, int cx, int cy);
@@ -57,6 +53,7 @@ protected:
     afx_msg LRESULT OnImportDone(WPARAM wParam, LPARAM lParam);
     afx_msg void OnMeasureItem(int nIDCtl, LPMEASUREITEMSTRUCT lpMis);
     afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDis);
+    BOOL PreTranslateMessage(MSG* pMsg) override;
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -85,12 +82,6 @@ private:
     CButton  m_btnCancel;
     CStatic  m_hint;
 
-    // 拖拽排序状态
-    int  m_dragIndex = -1;   // 正被拖动的行
-    int  m_dropIndex = -1;   // 目标插入位置(画指示线)
-    bool m_dragging  = false;
-    CPoint m_downPt{};
-
     // 双击日期编辑
     int m_editIndex = -1;
     CDateTimeCtrl m_dateCtrl;
@@ -110,7 +101,6 @@ private:
     void WorkerLoop();
 
     void DrawListItem(LPDRAWITEMSTRUCT lpDis);
-    int  ItemFromPoint(CPoint pt) const;       // 行命中
     CRect FileNameRect(int index) const;       // 文件名区域(双击定位)
     void BeginDateEdit(int index);
     void CommitDateEdit();

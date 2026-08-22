@@ -1,11 +1,16 @@
 #include "ThumbGridView.h"
 #include "Theme.h"
 #include "PreviewDlg.h"
+#include "../resource.h"
 
 #include <afxglobals.h>
+#include <shellapi.h>
+#include <shlwapi.h>
 
 #include <algorithm>
 #include <process.h>
+
+#pragma comment(lib, "shlwapi.lib")
 
 BEGIN_MESSAGE_MAP(ThumbGridView, CWnd)
     ON_WM_CREATE()
@@ -16,7 +21,10 @@ BEGIN_MESSAGE_MAP(ThumbGridView, CWnd)
     ON_WM_MOUSEWHEEL()
     ON_WM_LBUTTONDOWN()
     ON_WM_LBUTTONDBLCLK()
+    ON_WM_CONTEXTMENU()
     ON_WM_ERASEBKGND()
+    ON_COMMAND(ID_CTX_OPEN_EXPLORER, OnCtxOpenExplorer)
+    ON_COMMAND(ID_CTX_DELETE, OnCtxDelete)
     ON_MESSAGE(WM_THUMB_READY, OnThumbReady)
 END_MESSAGE_MAP()
 
@@ -323,6 +331,90 @@ void ThumbGridView::OpenPreview(int index)
     dlg.DoModal();
     m_selected = static_cast<int>(dlg.CurrentIndex());
     Invalidate(FALSE);
+}
+
+// ---------------------------------------------------------------------------
+// 右键菜单: 资源管理器打开 / 删除图片及缩略图
+// ---------------------------------------------------------------------------
+
+void ThumbGridView::OnContextMenu(CWnd* /*pWnd*/, CPoint pt)
+{
+    if (!m_game || m_game->Shots.empty())
+        return;
+
+    // pt 为屏幕坐标;右键空白区(pt = -1,-1,来自键盘)则不弹
+    if (pt.x == -1 && pt.y == -1)
+        return;
+
+    // 屏幕坐标 → 客户区,做命中测试
+    CPoint clientPt = pt;
+    ScreenToClient(&clientPt);
+    int hit = HitTest(clientPt);
+    if (hit < 0)
+        return; // 点在空白处
+
+    m_ctxIndex = hit;
+    m_selected = hit;
+    Invalidate(FALSE);
+
+    CMenu menu;
+    menu.CreatePopupMenu();
+    menu.AppendMenu(MF_STRING, ID_CTX_OPEN_EXPLORER, L"在资源管理器中打开");
+    menu.AppendMenu(MF_STRING, ID_CTX_DELETE,        L"删除此截图及缩略图");
+    menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, this);
+}
+
+void ThumbGridView::OnCtxOpenExplorer()
+{
+    if (!m_game || m_ctxIndex < 0 ||
+        m_ctxIndex >= static_cast<int>(m_game->Shots.size()))
+        return;
+
+    const CString& path = m_game->Shots[m_ctxIndex].FilePath;
+    // explorer /select,<path> 选中该文件
+    CString param = L"/select,\"" + path + L"\"";
+    ::ShellExecute(nullptr, L"open", L"explorer.exe", param, nullptr, SW_SHOW);
+}
+
+void ThumbGridView::OnCtxDelete()
+{
+    if (!m_game || m_ctxIndex < 0 ||
+        m_ctxIndex >= static_cast<int>(m_game->Shots.size()))
+        return;
+
+    DeleteShotAt(m_ctxIndex);
+}
+
+void ThumbGridView::DeleteShotAt(int index)
+{
+    const ScreenshotItem& shot = m_game->Shots[index];
+
+    // 二次确认
+    CString msg;
+    msg.Format(L"确定删除这张截图吗?\n\n%s\n\n将同时删除其缩略图,且不可恢复。",
+               static_cast<LPCTSTR>(shot.FileName));
+    if (MessageBox(msg, L"删除截图", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+        return;
+
+    // 删除原图
+    if (::PathFileExists(shot.FilePath))
+        ::DeleteFile(shot.FilePath);
+
+    // 删除对应缩略图(优先 ThumbPath,否则按命名规则推导)
+    CString thumbPath = shot.ThumbPath;
+    if (thumbPath.IsEmpty())
+    {
+        int pos = shot.FilePath.ReverseFind(L'\\');
+        if (pos > 0)
+            thumbPath = shot.FilePath.Left(pos) + L"\\thumbnails\\" + shot.FileName;
+    }
+    if (!thumbPath.IsEmpty() && ::PathFileExists(thumbPath))
+        ::DeleteFile(thumbPath);
+
+    // 通知主窗口重新扫描(数据已变,索引失效)
+    CWnd* parent = GetParent();
+    if (parent)
+        parent->PostMessage(WM_SHOTS_CHANGED);
 }
 
 // ---------------------------------------------------------------------------

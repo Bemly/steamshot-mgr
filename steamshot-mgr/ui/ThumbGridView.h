@@ -20,6 +20,10 @@
 // 自定义消息:后台线程完成一张缩略图后投递给视图
 #define WM_THUMB_READY (WM_APP + 101)
 
+// 自定义消息:删除某张截图后,请求主窗口重新扫描数据
+// (wParam/lParam 未用;主窗口收到后 OnRefresh)
+#define WM_SHOTS_CHANGED (WM_APP + 102)
+
 class ThumbGridView : public CWnd
 {
 public:
@@ -40,6 +44,9 @@ protected:
     afx_msg BOOL    OnMouseWheel(UINT flags, short delta, CPoint pt);
     afx_msg void    OnLButtonDown(UINT flags, CPoint pt);
     afx_msg void    OnLButtonDblClk(UINT flags, CPoint pt);
+    afx_msg void    OnContextMenu(CWnd* pWnd, CPoint pt);
+    afx_msg void    OnCtxOpenExplorer();
+    afx_msg void    OnCtxDelete();
     afx_msg BOOL    OnEraseBkgnd(CDC* pDC);
     afx_msg LRESULT OnThumbReady(WPARAM wParam, LPARAM lParam);
     DECLARE_MESSAGE_MAP()
@@ -88,6 +95,8 @@ private:
 
     void RecalcLayout();
     int  HitTest(CPoint pt) const;
+    int  m_ctxIndex = -1;          // 右键点击的截图索引
+    void DeleteShotAt(int index);  // 删除原图+缩略图并通知刷新
     void EnsureVisible(int index);
     void OpenPreview(int index);
 };

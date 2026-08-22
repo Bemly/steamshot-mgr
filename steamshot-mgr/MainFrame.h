@@ -21,6 +21,7 @@ protected:
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg void OnRefresh();
     afx_msg void OnImport();
+    afx_msg LRESULT OnShotsChanged(WPARAM wParam, LPARAM lParam);
     DECLARE_MESSAGE_MAP()
 
 private:
