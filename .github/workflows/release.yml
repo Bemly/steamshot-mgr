@@ -1,0 +1,106 @@
+# 自动构建并发布 Release
+#
+# 触发条件:
+#   - 推送到 main 分支(每次推送发布新版本)
+#   - 手动触发(workflow_dispatch)
+#
+# 流程: 探测运行器上可用的 VC 工具集与 Windows SDK
+#       → MSBuild 编译 Release|x64(参数覆盖工程内硬编码版本)
+#       → 压缩 exe 为 zip
+#       → 以 v0.1.<run_number> 为标签创建 Release 并上传产物
+#
+# 说明: 工程文件里硬编码了 v145 / 10.0.26100.0,但 MSBuild 的
+#       全局属性(-p:)优先级高于工程设置,因此 CI 可直接覆盖,
+#       本地开发不受影响。
+
+name: 构建并发布
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: 探测工具集与 Windows SDK
+        id: probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # ---- Windows SDK: 取版本号最大的目录 ----
+          $kitsRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include'
+          if (-not (Test-Path $kitsRoot)) { throw "未找到 Windows Kits: $kitsRoot" }
+          $sdkDir = Get-ChildItem $kitsRoot -Directory |
+                    Where-Object { $_.Name -match '^\d+\.\d+\.\d+' } |
+                    Sort-Object { [version]($_.Name -replace '[^0-9.]','') } |
+                    Select-Object -Last 1
+          if (-not $sdkDir) { throw '未找到任何 Windows SDK 版本' }
+          Write-Host "使用 Windows SDK: $($sdkDir.Name)"
+
+          # ---- VC 平台工具集(v143/v145…): 在所有 MSBuild VC 目录中找最高版 ----
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vsRoot  = & $vswhere -latest -products * `
+                     -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                     -property installationPath
+          if (-not $vsRoot) { throw '未找到带 C++ 工具集的 Visual Studio 安装' }
+          Write-Host "VS 安装目录: $vsRoot"
+
+          $ptDirs = Get-ChildItem (Join-Path $vsRoot 'MSBuild\Microsoft\VC') -Directory |
+                    ForEach-Object { Join-Path $_.FullName 'Platforms\x64\PlatformToolsets' } |
+                    Where-Object { Test-Path $_ }
+          $toolsetDir = Get-ChildItem $ptDirs -Directory |
+                        Where-Object { $_.Name -match '^v1\d\d$' } |
+                        Sort-Object { [int]$_.Name.Substring(1) } |
+                        Select-Object -Last 1
+          if (-not $toolsetDir) { throw '未找到任何 VC 平台工具集(v1xx)' }
+          Write-Host "使用平台工具集: $($toolsetDir.Name)"
+
+          Add-Content $env:GITHUB_OUTPUT "toolset=$($toolsetDir.Name)"
+          Add-Content $env:GITHUB_OUTPUT "sdk=$($sdkDir.Name)"
+
+      - name: 构建(Release | x64)
+        shell: pwsh
+        run: |
+          msbuild steamshot-mgr.sln /m /nologo /v:m `
+            "/p:Configuration=Release" "/p:Platform=x64" `
+            "/p:PlatformToolset=${{ steps.probe.outputs.toolset }}" `
+            "/p:WindowsTargetPlatformVersion=${{ steps.probe.outputs.sdk }}"
+          if ($LASTEXITCODE -ne 0) { throw "MSBuild 失败,退出码 $LASTEXITCODE" }
+
+      - name: 打包
+        shell: pwsh
+        run: |
+          $exe = 'x64\Release\steamshot-mgr.exe'
+          if (-not (Test-Path $exe)) { throw "构建产物不存在: $exe" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $exe dist\
+          Compress-Archive -Path dist\steamshot-mgr.exe `
+                           -DestinationPath dist\steamshot-mgr-x64.zip -Force
+          Write-Host "打包完成: dist\steamshot-mgr-x64.zip"
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: steamshot-mgr v0.1.${{ github.run_number }}
+          body: |
+            自动构建版本,对应提交 ${{ github.sha }}
+
+            ### 更新内容
+            ${{ github.event.head_commit.message }}
+
+            ### 下载
+            - `steamshot-mgr-x64.zip`: 解压后直接运行(需系统已安装 VS2026 MFC 运行库)
+          files: dist/steamshot-mgr-x64.zip
