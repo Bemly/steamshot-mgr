@@ -190,17 +190,15 @@ if pos != -1:
 * `userdata/<uid>/760/screenshots.vdf` 顶层 `shortcutnames { "123" "My Game" }`（文本 VDF，可用 `VdfParser`）
 * `userdata/<uid>/config/shortcuts.vdf` 二进制（`shortcuts` 数组含 `appname` / `appid`），需同类二进制解析，键为明文。
 
-## 6. 合并策略与 CSV 输出
+## 6. 合并策略与验证
 
 优先级：`manifest > appinfo > shortcutnames > App <id>`
 
-`gen_csv.py` 生成三份（均 `UTF-8-SIG`）：
-
-* `offline_appids.csv` — 去重合集 100 行，列 `appid,name,source,resolved_offline`，`resolved_offline=yes` 表示离线可解。
-* `offline_appids_manifest_only.csv` — 仅 `manifest` 37 行，列 `appid,name,source,acf_path`
-* `offline_appids_appinfo.csv` — `appinfo` 全量 2433 行
-
-校验：`1447430` 在 CSV 中为 `e5 b0 8f ...` 正确 UTF-8，Excel 直显中文。
+> 注：开发期曾用 `gen_csv.py` 生成三份验证 CSV（`offline_appids*.csv`）核对解析正确性，
+> 功能落地后已从仓库移除（属可再生的临时产物，不入库）。验证结论保留如下：
+>
+> * 去重合集 100 行（`manifest 37` + 截图目录 77）全部离线可解；`appinfo` 全量可解 `2433` 个。
+> * 校验样例：`1447430 → 小黑盒加速器` 为正确 UTF-8（`e5 b0 8f e9 bb 91...`）。
 
 ## 7. 集成到 `steamshot-mgr`
 
