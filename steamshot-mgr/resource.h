@@ -4,6 +4,7 @@
 #define IDR_MAINFRAME       128
 #define IDD_PREVIEW         129
 #define IDD_IMPORT          130
+#define IDD_DATE_EDIT       131
 
 // 控件 ID
 #define IDC_GAME_LIST       1001

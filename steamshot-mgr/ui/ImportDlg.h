@@ -53,7 +53,6 @@ protected:
     afx_msg LRESULT OnImportDone(WPARAM wParam, LPARAM lParam);
     afx_msg void OnMeasureItem(int nIDCtl, LPMEASUREITEMSTRUCT lpMis);
     afx_msg void OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDis);
-    BOOL PreTranslateMessage(MSG* pMsg) override;
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -82,10 +81,8 @@ private:
     CButton  m_btnCancel;
     CStatic  m_hint;
 
-    // 双击日期编辑
-    int m_editIndex = -1;
-    CDateTimeCtrl m_dateCtrl;
-    bool m_dateCtrlActive = false;
+    // 双击日期编辑(弹出 CDateEditDlg 子对话框,确定后才改文件名)
+    int m_editIndex = -1;   // 正在编辑日期的行(仅用于编辑后重绘定位)
 
     // 后台批处理
     HANDLE m_thread  = nullptr;
@@ -102,13 +99,28 @@ private:
 
     void DrawListItem(LPDRAWITEMSTRUCT lpDis);
     CRect FileNameRect(int index) const;       // 文件名区域(双击定位)
-    void BeginDateEdit(int index);
-    void CommitDateEdit();
-    void CancelDateEdit();
+    void BeginDateEdit(int index);             // 弹出日期编辑对话框并应用结果
 
     bool DoImport();     // 二次确认 + 写盘;成功返回 true
     void CleanupTmp();   // 清空 tmp 目录残留
     void LayoutControls();
 
     static constexpr int kRowH = 56; // 行高(含缩略图)
+};
+
+// ---------------------------------------------------------------------------
+// CDateEditDlg —— 修改日期时间的小对话框(IDD_DATE_EDIT)
+//   DTP 控件 + [确定][取消];确定时把控件值写回 m_time
+// ---------------------------------------------------------------------------
+class CDateEditDlg : public CDialog
+{
+public:
+    COleDateTime m_time;   // 进入时为原时间,确定后被控件新值覆盖
+
+    explicit CDateEditDlg(COleDateTime t, CWnd* parent = nullptr);
+
+protected:
+    BOOL OnInitDialog() override;
+    afx_msg void OnDtpKillFocus(NMHDR* hdr, LRESULT* res);
+    DECLARE_MESSAGE_MAP()
 };

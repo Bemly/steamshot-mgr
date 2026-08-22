@@ -119,7 +119,6 @@ void CImportDlg::OnSize(UINT type, int cx, int cy)
 
 void CImportDlg::OnDestroy()
 {
-    CancelDateEdit();
     StopWorker();
     DragAcceptFiles(FALSE);
     CleanupTmp();
@@ -386,12 +385,6 @@ void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
 
     // 文件名
     CRect rcName = FileNameRect(index);
-    if (m_editIndex == index)
-    {
-        // 正在编辑,画出编辑占位(实际控件覆盖其上)
-        CBrush eb(RGB(0x10, 0x14, 0x1A));
-        dc.FillRect(rcName, &eb);
-    }
     dc.SelectObject(&Theme::Font());
     dc.SetTextColor(Theme::Text());
     dc.DrawText(item.FileName, rcName, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
@@ -479,96 +472,22 @@ void CImportDlg::OnListDblClk()
 
 void CImportDlg::BeginDateEdit(int index)
 {
-    CommitDateEdit(); // 先提交上一个
-
-    m_editIndex = index;
+    // 弹出"修改日期"子对话框:确定后才改文件名,取消则不动
     Item& item = *m_items[index];
+    CDateEditDlg dlg(item.Time, this);
+    if (dlg.DoModal() != IDOK)
+        return; // 用户取消,文件名保持不变
 
-    CRect rcName = FileNameRect(index);
-    // 列表客户区坐标 → 对话框客户区坐标
-    CPoint tl(rcName.left, rcName.top);
-    m_list.ClientToScreen(&tl);
-    ScreenToClient(&tl);
-    CRect rcDlg(tl.x, tl.y, tl.x + 240, tl.y + 26);
+    item.Time = dlg.m_time;
+    // 以新时间重新生成唯一文件名(释放旧名)
+    item.FileName = m_nameGen->Regenerate(dlg.m_time, item.FileName);
 
-    if (!m_dateCtrlActive)
-    {
-        // 用自定义格式同时显示日期与时间(默认样式 + SetFormat)
-        m_dateCtrl.Create(WS_CHILD | WS_VISIBLE | DTS_UPDOWN,
-                          rcDlg, this, IDC_IMP_DATE);
-        m_dateCtrl.SetFormat(L"yyyy-MM-dd HH:mm:ss");
-        m_dateCtrl.SetFont(&Theme::Font());
-        m_dateCtrlActive = true;
-    }
-    else
-    {
-        m_dateCtrl.MoveWindow(rcDlg);
-        m_dateCtrl.ShowWindow(SW_SHOW);
-    }
-
-    m_dateCtrl.SetTime(item.Time);
-    m_dateCtrl.SetFocus();
-    m_list.InvalidateRect(FileNameRect(index), FALSE);
-}
-
-void CImportDlg::CommitDateEdit()
-{
-    if (!m_dateCtrlActive || m_editIndex < 0)
-        return;
-
-    COleDateTime t;
-    if (m_dateCtrl.GetTime(t) == GDT_VALID)
-    {
-        Item& item = *m_items[m_editIndex];
-        item.Time = t;
-        // 以新时间重新生成唯一文件名(释放旧名)
-        item.FileName = m_nameGen->Regenerate(t, item.FileName);
-    }
-
-    m_dateCtrl.ShowWindow(SW_HIDE);
+    // 重绘该行
+    m_editIndex = index;
+    CRect rc = FileNameRect(index);
+    rc.right = rc.left + 320; // 覆盖小字区域
+    m_list.InvalidateRect(rc, FALSE);
     m_editIndex = -1;
-    m_list.Invalidate(FALSE);
-}
-
-void CImportDlg::CancelDateEdit()
-{
-    if (m_dateCtrlActive)
-    {
-        m_dateCtrl.ShowWindow(SW_HIDE);
-        m_editIndex = -1;
-        m_list.Invalidate(FALSE);
-    }
-}
-
-BOOL CImportDlg::PreTranslateMessage(MSG* pMsg)
-{
-    // 日期编辑激活时: Enter 提交, Esc 取消, 点击控件外提交
-    if (m_dateCtrlActive && m_editIndex >= 0)
-    {
-        if (pMsg->message == WM_KEYDOWN)
-        {
-            if (pMsg->wParam == VK_RETURN)
-            {
-                CommitDateEdit();
-                return TRUE;
-            }
-            if (pMsg->wParam == VK_ESCAPE)
-            {
-                CancelDateEdit();
-                return TRUE;
-            }
-        }
-        else if (pMsg->message == WM_LBUTTONDOWN || pMsg->message == WM_LBUTTONDBLCLK)
-        {
-            // 点击落在日期控件之外则提交
-            CPoint pt(pMsg->pt);
-            CRect rcDate;
-            m_dateCtrl.GetWindowRect(rcDate);
-            if (!rcDate.PtInRect(pt))
-                CommitDateEdit();
-        }
-    }
-    return CDialog::PreTranslateMessage(pMsg);
 }
 
 // ---------------------------------------------------------------------------
@@ -577,8 +496,6 @@ BOOL CImportDlg::PreTranslateMessage(MSG* pMsg)
 
 void CImportDlg::OnBnClickedDone()
 {
-    CommitDateEdit();
-
     // 统计可导入项
     int ready = 0;
     for (const auto& it : m_items)
@@ -608,7 +525,6 @@ void CImportDlg::OnBnClickedDone()
 
 void CImportDlg::OnBnClickedCancel()
 {
-    CancelDateEdit();
     EndDialog(IDCANCEL);
 }
 
@@ -708,4 +624,38 @@ void CImportDlg::OnPaint()
     dc.MoveTo(rc.left, 40);
     dc.LineTo(rc.right, 40);
     dc.SelectObject(op);
+}
+
+// ---------------------------------------------------------------------------
+// CDateEditDlg —— 修改日期时间的小对话框
+// ---------------------------------------------------------------------------
+
+BEGIN_MESSAGE_MAP(CDateEditDlg, CDialog)
+END_MESSAGE_MAP()
+
+CDateEditDlg::CDateEditDlg(COleDateTime t, CWnd* parent)
+    : CDialog(IDD_DATE_EDIT, parent), m_time(t)
+{
+}
+
+BOOL CDateEditDlg::OnInitDialog()
+{
+    CDialog::OnInitDialog();
+
+    // 标题与按钮文字走 i18n(资源模板里是中文默认值)
+    SetWindowText(I18n::T(S_DATE_TITLE));
+    CWnd* ok = GetDlgItem(IDOK);
+    CWnd* cancel = GetDlgItem(IDCANCEL);
+    if (ok)     ok->SetWindowText(I18n::T(S_BTN_OK));
+    if (cancel) cancel->SetWindowText(I18n::T(S_CANCEL));
+
+    // DTP:自定义格式同时显示日期与时间;带下拉日历(资源默认样式)
+    auto* dtp = static_cast<CDateTimeCtrl*>(GetDlgItem(IDC_IMP_DATE));
+    if (dtp)
+    {
+        dtp->SetFormat(L"yyyy-MM-dd HH:mm:ss");
+        dtp->SetFont(&Theme::Font());
+        dtp->SetTime(m_time);
+    }
+    return TRUE;
 }

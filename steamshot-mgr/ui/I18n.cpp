@@ -46,6 +46,8 @@ namespace
         /* S_RESULT_CAP   */ { L"导入结果",                     L"Import Result" },
         /* S_IMG_FILTER   */ { L"图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff;*.webp|所有文件|*.*||",
                                L"Images|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff;*.webp|All files|*.*||" },
+        /* S_DATE_TITLE   */ { L"修改日期",                     L"Edit Date" },
+        /* S_BTN_OK       */ { L"确定",                         L"OK" },
     };
 
     constexpr int kCount = sizeof(kTable) / sizeof(kTable[0]);

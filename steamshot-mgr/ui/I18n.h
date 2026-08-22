@@ -47,6 +47,8 @@ enum StrId {
     S_RESULT_FMT,     // 成功 %d 张,失败 %d 张。
     S_RESULT_CAP,     // 导入结果标题
     S_IMG_FILTER,     // 文件选择过滤器描述
+    S_DATE_TITLE,     // 修改日期对话框标题
+    S_BTN_OK,         // 确定(不能叫 S_OK,与 COM 宏冲突)
 };
 
 namespace I18n
