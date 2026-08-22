@@ -59,9 +59,12 @@ void GameListCtrl::DrawItem(LPDRAWITEMSTRUCT lpDis)
     dc.SetTextColor(selected ? Theme::Accent() : Theme::Text());
     dc.DrawText(title, rcTitle, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_VCENTER);
 
-    // 截图数量
+    // 截图数量 + AppID(名称未知时标题已是 "App <id>",小字不再重复)
     CString count;
-    count.Format(L"%d 张截图", static_cast<int>(game.Shots.size()));
+    if (game.Name.IsEmpty())
+        count.Format(L"%d 张截图", static_cast<int>(game.Shots.size()));
+    else
+        count.Format(L"%u  ·  %d 张截图", game.AppId, static_cast<int>(game.Shots.size()));
     CRect rcCount(rc.left + 12, rc.top + 24, rc.right - 8, rc.bottom - 2);
     dc.SelectObject(&Theme::FontSmall());
     dc.SetTextColor(Theme::TextDim());

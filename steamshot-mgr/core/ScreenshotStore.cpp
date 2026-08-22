@@ -3,6 +3,7 @@
 #include "GameCatalog.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 int ScreenshotStore::Scan()
 {
@@ -32,9 +33,13 @@ int ScreenshotStore::Scan()
 
     ::FindClose(hUser);
 
-    // 游戏名映射
+    // 游戏名映射:三级链路 manifest → appinfo.vdf → shortcutnames,
+    // 把截图目录涉及的 AppID 作为 wanted 集合传入(appinfo 按需解析)
+    std::unordered_set<unsigned int> wanted;
+    for (const auto& g : m_games)
+        wanted.insert(g.AppId);
     GameCatalog catalog;
-    catalog.Load();
+    catalog.Load(wanted);
     for (auto& g : m_games)
         g.Name = catalog.GetName(g.AppId);
 

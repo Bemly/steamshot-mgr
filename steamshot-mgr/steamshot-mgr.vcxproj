@@ -89,6 +89,8 @@
     <ClInclude Include="core\SteamLocator.h" />
     <ClInclude Include="core\GameCatalog.h" />
     <ClInclude Include="core\ScreenshotStore.h" />
+    <ClInclude Include="core\AppInfoDb.h" />
+    <ClInclude Include="core\ShortcutNames.h" />
     <ClInclude Include="core\ImageImporter.h" />
     <ClInclude Include="core\ShotNameGen.h" />
     <ClInclude Include="ui\Theme.h" />
@@ -104,6 +106,8 @@
     <ClCompile Include="core\SteamLocator.cpp" />
     <ClCompile Include="core\GameCatalog.cpp" />
     <ClCompile Include="core\ScreenshotStore.cpp" />
+    <ClCompile Include="core\AppInfoDb.cpp" />
+    <ClCompile Include="core\ShortcutNames.cpp" />
     <ClCompile Include="core\ImageImporter.cpp" />
     <ClCompile Include="core\ShotNameGen.cpp" />
     <ClCompile Include="ui\Theme.cpp" />

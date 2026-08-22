@@ -22,7 +22,7 @@
 - **自动定位 Steam**:读注册表 `HKCU\Software\Valve\Steam\SteamPath`,解析 `libraryfolders.vdf` 收集所有库目录(主库 + 附加库)。
 - **扫描截图**:遍历所有用户的 `760\remote\<AppID>\screenshots\`,按游戏分组统计。
 - **时间戳排序**:从文件名(`YYYYMMDDHHMMSS_N.jpg`)解析拍摄时间,**最新在前**,缩略图下方标注 `YYYY-MM-DD HH:MM:SS`。
-- **游戏名映射**:从 `appmanifest_*.acf` 的 `name` 字段读取(支持中文),未安装游戏回退显示 `App <AppID>`;另附离线映射验证数据见 [docs/offline-appid-mapping.md](docs/offline-appid-mapping.md)。
+- **游戏名映射(三级离线链路)**:`appmanifest_*.acf`(已安装) → `appcache/appinfo.vdf` v41 二进制(未安装但曾拥有,按截图 AppID 集合按需解析) → `screenshots.vdf shortcutnames`(非 Steam 游戏),全部未命中回退 `App <AppID>`;游戏列表小字注明 `AppID · N 张截图`。详见 [docs/offline-appid-mapping.md](docs/offline-appid-mapping.md)。
 - **虚拟化网格**:不一次性加载数千张图,仅解码可视区;后台线程解码 + LRU 内存缓存(上限 300 张),切换游戏自动作废旧任务。
 - **缩略图策略**:优先用 Steam 自带 `thumbnails\` 缩略图,缺失或损坏时回退解码原图。
 - **全尺寸预览**:双击打开,等比适配窗口,`←`/`→` 或 `A`/`D` 或点击左右半区切换,`Esc` 关闭;底部显示时间戳、文件名、原图分辨率、序号。
@@ -64,7 +64,9 @@ steamshot-mgr/
    ├─ core/
    │  ├─ SteamLocator.*          # 注册表 + libraryfolders.vdf 定位库目录
    │  ├─ VdfParser.*             # 文本 KeyValues 解析器(acf/vdf,只读)
-   │  ├─ GameCatalog.*           # AppID→游戏名(appmanifest),回退 App <id>
+   │  ├─ GameCatalog.*           # 三级链路取游戏名(manifest→appinfo→shortcutnames)
+   │  ├─ AppInfoDb.*            # appinfo.vdf 二进制 v41 解析(只提取 wanted)
+   │  ├─ ShortcutNames.*        # 非 Steam 游戏名(screenshots.vdf)
    │  ├─ ScreenshotStore.*       # 扫描截图、文件名时间戳解析、降序排序
    │  ├─ ImageImporter.*         # 转 JPEG/压缩(质量→分辨率迭代)/警告判定
    │  └─ ShotNameGen.*           # 标准文件名生成 + 同秒顺延避让

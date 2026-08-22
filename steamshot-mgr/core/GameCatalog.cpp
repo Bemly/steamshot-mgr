@@ -1,14 +1,34 @@
 #include "GameCatalog.h"
 #include "SteamLocator.h"
 #include "VdfParser.h"
+#include "AppInfoDb.h"
+#include "ShortcutNames.h"
 
-void GameCatalog::Load()
+void GameCatalog::Load(const std::unordered_set<unsigned int>& wanted)
 {
     m_names.clear();
 
+    // 1) 已安装游戏: appmanifest_*.acf
+    LoadManifests();
+
+    // 2) 未安装但曾拥有/浏览: appinfo.vdf(只查 wanted 里还没解出的)
+    std::unordered_set<unsigned int> missing;
+    for (unsigned int id : wanted)
+    {
+        if (!m_names.count(id))
+            missing.insert(id);
+    }
+    if (!missing.empty())
+        LoadAppInfo(missing);
+
+    // 3) 非 Steam 游戏: shortcutnames
+    LoadShortcutNames();
+}
+
+void GameCatalog::LoadManifests()
+{
     for (const CString& appsDir : SteamLocator::GetSteamAppsDirs())
     {
-        // 遍历 appmanifest_*.acf
         CString mask = appsDir + L"\\appmanifest_*.acf";
         WIN32_FIND_DATA fd{};
         HANDLE hFind = ::FindFirstFile(mask, &fd);
@@ -49,6 +69,31 @@ void GameCatalog::ParseManifest(LPCTSTR acfPath, unsigned int appId)
     gameName.Trim();
     if (!gameName.IsEmpty())
         m_names[appId] = gameName;
+}
+
+void GameCatalog::LoadAppInfo(const std::unordered_set<unsigned int>& missing)
+{
+    AppInfoDb db;
+    std::unordered_map<unsigned int, CString> resolved;
+    if (db.LoadWanted(missing, resolved) > 0)
+    {
+        for (const auto& kv : resolved)
+            m_names[kv.first] = kv.second;
+    }
+}
+
+void GameCatalog::LoadShortcutNames()
+{
+    std::unordered_map<unsigned int, CString> shortcuts;
+    ShortcutNames loader;
+    loader.Load(shortcuts);
+
+    for (const auto& kv : shortcuts)
+    {
+        // 只补缺,manifest/appinfo 优先级更高
+        if (!m_names.count(kv.first))
+            m_names[kv.first] = kv.second;
+    }
 }
 
 CString GameCatalog::GetName(unsigned int appId) const
