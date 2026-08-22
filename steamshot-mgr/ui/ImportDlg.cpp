@@ -1,5 +1,6 @@
 #include "ImportDlg.h"
 #include "Theme.h"
+#include "I18n.h"
 #include "../resource.h"
 
 #include <process.h>
@@ -39,7 +40,9 @@ BOOL CImportDlg::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
-    SetWindowText(L"导入截图 — " + m_gameName);
+    CString cap;
+    cap.Format(I18n::T(S_IMP_TITLE), static_cast<LPCTSTR>(m_gameName));
+    SetWindowText(cap);
 
     // 窗口 80% 居中
     int w = ::GetSystemMetrics(SM_CXSCREEN) * 3 / 5;
@@ -58,7 +61,7 @@ BOOL CImportDlg::OnInitDialog()
     m_nameGen = std::make_unique<ShotNameGen>(m_gameDir);
 
     // 顶部提示
-    m_hint.Create(L"把图片拖入下方列表,或点击 [选取图片]。双击文件名可修改日期。",
+    m_hint.Create(I18n::T(S_IMP_HINT),
                   WS_CHILD | WS_VISIBLE | SS_LEFT, CRect(0, 0, 0, 0), this, IDC_IMP_HINT);
     m_hint.SetFont(&Theme::Font());
 
@@ -68,11 +71,11 @@ BOOL CImportDlg::OnInitDialog()
                   CRect(0, 0, 0, 0), this, IDC_IMP_LIST);
 
     // 按钮
-    m_btnBrowse.Create(L"选取图片…", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+    m_btnBrowse.Create(I18n::T(S_PICK_FILES), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                        CRect(0, 0, 0, 0), this, IDC_BTN_BROWSE);
-    m_btnDone.Create(L"完成", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+    m_btnDone.Create(I18n::T(S_DONE), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                      CRect(0, 0, 0, 0), this, IDC_BTN_DONE);
-    m_btnCancel.Create(L"取消", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+    m_btnCancel.Create(I18n::T(S_CANCEL), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                        CRect(0, 0, 0, 0), this, IDCANCEL);
     m_btnBrowse.SetFont(&Theme::Font());
     m_btnDone.SetFont(&Theme::Font());
@@ -143,9 +146,7 @@ void CImportDlg::OnDropFiles(HDROP hDrop)
 
 void CImportDlg::OnBnClickedBrowse()
 {
-    CString filter =
-        L"图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff;*.webp|"
-        L"所有文件|*.*||";
+    CString filter = I18n::T(S_IMG_FILTER);
     CFileDialog dlg(TRUE, nullptr, nullptr,
                     OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER, filter, this);
 
@@ -380,7 +381,7 @@ void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
         dc.FillRect(rcThumb, &ph);
         dc.SelectObject(&Theme::FontSmall());
         dc.SetTextColor(Theme::TextDim());
-        dc.DrawText(item.Done ? L"失败" : L"…", rcThumb, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        dc.DrawText(item.Done ? I18n::T(S_ROW_FAILED) : CString(L"…"), rcThumb, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 
     // 文件名
@@ -401,7 +402,7 @@ void CImportDlg::DrawListItem(LPDRAWITEMSTRUCT lpDis)
     CRect rcSub(rcName.left, rcName.bottom + 1, rcName.right + 120, rc.bottom - 4);
     CString sub;
     if (!item.Done)
-        sub = L"处理中…";
+        sub = I18n::T(S_PROCESSING);
     else if (!item.Result.Error.IsEmpty())
         sub = item.Result.Error;
     else
@@ -587,15 +588,15 @@ void CImportDlg::OnBnClickedDone()
     }
     if (ready == 0)
     {
-        MessageBox(L"没有可导入的图片。", L"导入", MB_ICONINFORMATION);
+        MessageBox(I18n::T(S_NOTHING), I18n::T(S_TIP), MB_ICONINFORMATION);
         return;
     }
 
     // 二次确认
     CString msg;
-    msg.Format(L"将把 %d 张截图导入到:\n\n%s\n\n(%s)\n\n确定继续吗?",
+    msg.Format(I18n::T(S_CONFIRM_MSG),
                ready, static_cast<LPCTSTR>(m_gameName), static_cast<LPCTSTR>(m_gameDir));
-    if (MessageBox(msg, L"确认导入", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES)
+    if (MessageBox(msg, I18n::T(S_CONFIRM_CAP), MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES)
         return;
 
     if (DoImport())
@@ -646,8 +647,8 @@ bool CImportDlg::DoImport()
     if (failCount > 0)
     {
         CString msg;
-        msg.Format(L"成功 %d 张,失败 %d 张。", okCount, failCount);
-        MessageBox(msg, L"导入结果", MB_ICONWARNING);
+        msg.Format(I18n::T(S_RESULT_FMT), okCount, failCount);
+        MessageBox(msg, I18n::T(S_RESULT_CAP), MB_ICONWARNING);
     }
 
     return okCount > 0;

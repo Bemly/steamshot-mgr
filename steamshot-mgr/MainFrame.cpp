@@ -1,5 +1,6 @@
 #include "MainFrame.h"
 #include "ui/Theme.h"
+#include "ui/I18n.h"
 #include "ui/ImportDlg.h"
 #include "resource.h"
 
@@ -11,6 +12,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
     ON_LBN_SELCHANGE(IDC_GAME_LIST, OnSelChangeGame)
     ON_COMMAND(ID_VIEW_REFRESH, OnRefresh)
     ON_BN_CLICKED(IDC_BTN_IMPORT, OnImport)
+    ON_BN_CLICKED(IDC_BTN_LANG, OnLangToggle)
     ON_MESSAGE(WM_SHOTS_CHANGED, OnShotsChanged)
 END_MESSAGE_MAP()
 
@@ -20,7 +22,7 @@ CMainFrame::CMainFrame()
                                       ::LoadCursor(nullptr, IDC_ARROW),
                                       nullptr, // 背景自绘
                                       AfxGetApp()->LoadIcon(IDR_MAINFRAME));
-    Create(cls, L"Steam 截图管理器", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+    Create(cls, I18n::T(S_TITLE), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
            CRect(100, 100, 1280, 800));
 }
 
@@ -35,9 +37,14 @@ int CMainFrame::OnCreate(LPCREATESTRUCT cs)
     m_header.SetFont(&Theme::FontBold());
 
     // 顶部右侧"导入"按钮
-    m_btnImport.Create(L"导入…", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+    m_btnImport.Create(I18n::T(S_IMPORT_BTN), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                        CRect(0, 0, 0, 0), this, IDC_BTN_IMPORT);
     m_btnImport.SetFont(&Theme::Font());
+
+    // 语言切换按钮(导入左侧):显示当前语言名,点击中英互换
+    m_btnLang.Create(I18n::LangName(), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                     CRect(0, 0, 0, 0), this, IDC_BTN_LANG);
+    m_btnLang.SetFont(&Theme::Font());
 
     // 左侧游戏列表(自绘)
     m_gameList.Create(WS_CHILD | WS_VISIBLE | WS_BORDER | LBS_OWNERDRAWFIXED |
@@ -55,18 +62,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT cs)
 void CMainFrame::LoadData()
 {
     int games = m_store.Scan();
+    m_lastGames = games;
+    m_lastTotal = m_store.TotalCount();
 
     if (games == 0)
     {
-        m_header.SetWindowText(L"未找到 Steam 截图 — 请确认已安装 Steam 并有截图记录");
+        m_header.SetWindowText(I18n::T(S_NO_STEAM));
         m_gameList.SetGames(nullptr);
         m_grid.SetGame(nullptr);
         return;
     }
 
-    CString title;
-    title.Format(L"截图  ·  %d 款游戏  ·  %d 张截图", games, m_store.TotalCount());
-    m_header.SetWindowText(title);
+    RefreshHeaderText();
 
     m_gameList.SetGames(&m_store.Games());
     if (!m_store.Games().empty())
@@ -76,10 +83,31 @@ void CMainFrame::LoadData()
     }
 }
 
+void CMainFrame::RefreshHeaderText()
+{
+    // 顶栏统计:使用缓存数字,语言切换时无需重扫
+    CString title;
+    title.Format(I18n::T(S_STATS), m_lastGames, m_lastTotal);
+    m_header.SetWindowText(title);
+}
+
 void CMainFrame::OnRefresh()
 {
     LoadData();
     Invalidate(FALSE);
+}
+
+void CMainFrame::OnLangToggle()
+{
+    I18n::Toggle();                       // 切换并持久化
+    SetWindowText(I18n::T(S_TITLE));      // 窗口标题
+    m_btnImport.SetWindowText(I18n::T(S_IMPORT_BTN));
+    m_btnLang.SetWindowText(I18n::LangName());
+    RefreshHeaderText();                  // 顶栏统计(用缓存,免重扫)
+
+    // 列表/网格为自绘,重绘时自动取新语言的字符串
+    m_gameList.Invalidate(FALSE);
+    m_grid.Invalidate(FALSE);
 }
 
 void CMainFrame::LayoutChildren()
@@ -87,11 +115,16 @@ void CMainFrame::LayoutChildren()
     CRect rc;
     GetClientRect(rc);
 
-    // 标题文本让出右侧按钮位置
-    int btnW = 90, btnH = 26, btnPad = 8;
-    m_header.MoveWindow(0, 0, rc.Width() - btnW - btnPad * 2, kHeaderH);
-    m_btnImport.MoveWindow(rc.Width() - btnW - btnPad,
-                           (kHeaderH - btnH) / 2, btnW, btnH);
+    // 右侧两个按钮:语言(70px)在最右,导入(100px)在其左;标题文本让出位置
+    int btnH = 26, btnPad = 8, gap = 6;
+    int langW = 70, importW = 100;
+
+    int xLang   = rc.Width() - btnPad - langW;
+    int xImport = xLang - gap - importW;
+
+    m_header.MoveWindow(0, 0, xImport - btnPad, kHeaderH);
+    m_btnImport.MoveWindow(xImport, (kHeaderH - btnH) / 2, importW, btnH);
+    m_btnLang.MoveWindow(xLang, (kHeaderH - btnH) / 2, langW, btnH);
 
     m_gameList.MoveWindow(0, kHeaderH, kListWidth, rc.Height() - kHeaderH);
     m_grid.MoveWindow(kListWidth, kHeaderH, rc.Width() - kListWidth, rc.Height() - kHeaderH);
@@ -108,17 +141,16 @@ LRESULT CMainFrame::OnShotsChanged(WPARAM, LPARAM)
     m_store.Scan();
 
     // 更新标题统计
-    int games = static_cast<int>(m_store.Games().size());
-    if (games == 0)
+    m_lastGames = static_cast<int>(m_store.Games().size());
+    m_lastTotal = m_store.TotalCount();
+    if (m_lastGames == 0)
     {
-        m_header.SetWindowText(L"未找到 Steam 截图");
+        m_header.SetWindowText(I18n::T(S_NO_STEAM));
         m_gameList.SetGames(nullptr);
         m_grid.SetGame(nullptr);
         return 0;
     }
-    CString title;
-    title.Format(L"截图  ·  %d 款游戏  ·  %d 张截图", games, m_store.TotalCount());
-    m_header.SetWindowText(title);
+    RefreshHeaderText();
 
     m_gameList.SetGames(&m_store.Games());
 
@@ -145,15 +177,18 @@ void CMainFrame::OnImport()
     int sel = m_gameList.GetCurSel();
     if (sel < 0 || static_cast<size_t>(sel) >= m_store.Games().size())
     {
-        MessageBox(L"请先在左侧选择一个游戏。", L"导入", MB_ICONINFORMATION);
+        MessageBox(I18n::T(S_SELECT_FIRST), I18n::T(S_TIP), MB_ICONINFORMATION);
         return;
     }
 
     const GameShots& game = m_store.Games()[sel];
-    CString displayName = game.Name.IsEmpty() ? CString(L"App") + CString(L" ") +
-                          std::to_wstring(game.AppId).c_str() : game.Name;
+    // 显示名:未知名称回退 "App <id>"(游戏名本身不翻译)
+    CString displayName;
     if (game.Name.IsEmpty())
         displayName.Format(L"App %u", game.AppId);
+    else
+        displayName = game.Name;
+
     CImportDlg dlg(game.Dir, displayName, this);
     if (dlg.DoModal() == IDOK && dlg.Imported())
     {

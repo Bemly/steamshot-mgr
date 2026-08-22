@@ -1,5 +1,6 @@
 #include "PreviewDlg.h"
 #include "Theme.h"
+#include "I18n.h"
 #include "../resource.h"
 
 BEGIN_MESSAGE_MAP(CPreviewDlg, CDialog)
@@ -35,17 +36,17 @@ void CPreviewDlg::LoadCurrent()
     m_image.Destroy();
     if (FAILED(m_image.Load(shot.FilePath)) || m_image.IsNull())
     {
-        m_status.Format(L"无法加载: %s", static_cast<LPCTSTR>(shot.FileName));
+        m_status.Format(I18n::T(S_PREVIEW_FAIL), static_cast<LPCTSTR>(shot.FileName));
     }
     else
     {
         // 云端状态段:仅已上传时显示(☁ + Workshop pid),其余状态不写
         CString cloud;
         if (shot.Cloud == CloudState::Uploaded && !shot.PublishedFileId.IsEmpty())
-            cloud.Format(L"   ·   \u2601 已上传 (pid %s)",
+            cloud.Format(I18n::T(S_CLOUD_UPLOADED),
                          static_cast<LPCTSTR>(shot.PublishedFileId));
         else if (shot.Cloud == CloudState::Uploaded)
-            cloud = L"   ·   \u2601 已上传";
+            cloud = I18n::T(S_CLOUD_UPLOADED_NOID);
 
         m_status.Format(L"%s   ·   %s   ·   %d × %d   ·   %zu / %zu%s",
                         static_cast<LPCTSTR>(shot.Timestamp.Format(L"%Y-%m-%d %H:%M:%S")),

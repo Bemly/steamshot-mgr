@@ -10,6 +10,7 @@
 #define IDC_THUMB_GRID      1002
 #define IDC_HEADER          1003
 #define IDC_BTN_IMPORT      1004
+#define IDC_BTN_LANG        1005
 
 // 导入对话框控件
 #define IDC_IMP_LIST        1101

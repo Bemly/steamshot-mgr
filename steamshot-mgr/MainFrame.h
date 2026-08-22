@@ -21,6 +21,7 @@ protected:
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg void OnRefresh();
     afx_msg void OnImport();
+    afx_msg void OnLangToggle();
     afx_msg LRESULT OnShotsChanged(WPARAM wParam, LPARAM lParam);
     DECLARE_MESSAGE_MAP()
 
@@ -30,10 +31,15 @@ private:
     ThumbGridView   m_grid;
     CStatic         m_header;     // 顶部标题栏
     CButton         m_btnImport;  // 顶部右侧"导入"按钮
+    CButton         m_btnLang;    // 语言切换按钮(导入左侧)
+
+    int m_lastGames = 0;          // 统计缓存:切语言时免重扫即可刷新顶栏
+    int m_lastTotal = 0;
 
     static constexpr int kListWidth  = 260; // 左栏宽
     static constexpr int kHeaderH    = 40;  // 顶部栏高
 
     void LayoutChildren();
     void LoadData();
+    void RefreshHeaderText();     // 按当前语言与缓存统计刷新顶栏文本
 };

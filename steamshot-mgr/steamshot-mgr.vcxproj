@@ -92,6 +92,7 @@
     <ClInclude Include="core\ScreenshotCloudStatus.h" />
     <ClInclude Include="core\AppInfoDb.h" />
     <ClInclude Include="core\ShortcutNames.h" />
+    <ClInclude Include="ui\I18n.h" />
     <ClInclude Include="core\ImageImporter.h" />
     <ClInclude Include="core\ShotNameGen.h" />
     <ClInclude Include="ui\Theme.h" />
@@ -110,6 +111,7 @@
     <ClCompile Include="core\ScreenshotCloudStatus.cpp" />
     <ClCompile Include="core\AppInfoDb.cpp" />
     <ClCompile Include="core\ShortcutNames.cpp" />
+    <ClCompile Include="ui\I18n.cpp" />
     <ClCompile Include="core\ImageImporter.cpp" />
     <ClCompile Include="core\ShotNameGen.cpp" />
     <ClCompile Include="ui\Theme.cpp" />

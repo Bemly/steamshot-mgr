@@ -1,6 +1,7 @@
 #include "ThumbGridView.h"
 #include "Theme.h"
 #include "PreviewDlg.h"
+#include "I18n.h"
 #include "../resource.h"
 
 #include <afxglobals.h>
@@ -149,7 +150,7 @@ void ThumbGridView::OnPaint()
     {
         dcMem.SelectObject(&Theme::Font());
         dcMem.SetTextColor(Theme::TextDim());
-        dcMem.DrawText(L"在左侧选择一个游戏以浏览截图", rcClient,
+        dcMem.DrawText(I18n::T(S_GRID_EMPTY), rcClient,
                        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         return;
     }
@@ -211,7 +212,7 @@ void ThumbGridView::OnPaint()
                 dcMem.FillRect(rcThumb, &ph);
                 dcMem.SelectObject(&Theme::FontSmall());
                 dcMem.SetTextColor(Theme::TextDim());
-                dcMem.DrawText(L"加载中…", rcThumb, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                dcMem.DrawText(I18n::T(S_LOADING), rcThumb, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 RequestThumb(index);
             }
 
@@ -374,8 +375,8 @@ void ThumbGridView::OnContextMenu(CWnd* /*pWnd*/, CPoint pt)
 
     CMenu menu;
     menu.CreatePopupMenu();
-    menu.AppendMenu(MF_STRING, ID_CTX_OPEN_EXPLORER, L"在资源管理器中打开");
-    menu.AppendMenu(MF_STRING, ID_CTX_DELETE,        L"删除此截图及缩略图");
+    menu.AppendMenu(MF_STRING, ID_CTX_OPEN_EXPLORER, I18n::T(S_CTX_OPEN));
+    menu.AppendMenu(MF_STRING, ID_CTX_DELETE,        I18n::T(S_CTX_DELETE));
     menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, this);
 }
 
@@ -406,9 +407,8 @@ void ThumbGridView::DeleteShotAt(int index)
 
     // 二次确认
     CString msg;
-    msg.Format(L"确定删除这张截图吗?\n\n%s\n\n将同时删除其缩略图,且不可恢复。",
-               static_cast<LPCTSTR>(shot.FileName));
-    if (MessageBox(msg, L"删除截图", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+    msg.Format(I18n::T(S_DEL_CONFIRM), static_cast<LPCTSTR>(shot.FileName));
+    if (MessageBox(msg, I18n::T(S_DEL_TITLE), MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
         return;
 
     // 删除原图

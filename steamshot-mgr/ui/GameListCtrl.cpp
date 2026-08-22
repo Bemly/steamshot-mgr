@@ -1,5 +1,6 @@
 #include "GameListCtrl.h"
 #include "Theme.h"
+#include "I18n.h"
 
 BEGIN_MESSAGE_MAP(GameListCtrl, CListBox)
     ON_WM_MEASUREITEM_REFLECT()
@@ -62,15 +63,15 @@ void GameListCtrl::DrawItem(LPDRAWITEMSTRUCT lpDis)
     // 截图数量 + AppID + 云端已传计数(只标 ☁,未上传不显示)
     CString count;
     if (game.Name.IsEmpty())
-        count.Format(L"%d 张截图", static_cast<int>(game.Shots.size()));
+        count.Format(I18n::T(S_SHOTS_ONLY), static_cast<int>(game.Shots.size()));
     else
-        count.Format(L"%u  ·  %d 张截图", game.AppId, static_cast<int>(game.Shots.size()));
+        count.Format(I18n::T(S_SHOTS_FMT), game.AppId, static_cast<int>(game.Shots.size()));
 
     const int total = static_cast<int>(game.Shots.size());
     if (game.UploadedCount > 0 && game.UploadedCount < total)
         count.AppendFormat(L"  ·  \u2601%d", game.UploadedCount);      // 部分已上传
     else if (game.UploadedCount == total && total > 0)
-        count += L"  ·  全部\u2601";                                    // 整库已上传
+        count += I18n::T(S_ALL_CLOUD);                                 // 整库已上传
 
     CRect rcCount(rc.left + 12, rc.top + 24, rc.right - 8, rc.bottom - 2);
     dc.SelectObject(&Theme::FontSmall());
