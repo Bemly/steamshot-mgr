@@ -7,8 +7,9 @@
 #include <cstdarg>
 #include <cstdio>
 
-// 诊断日志:同时输出到 VS 输出窗口(OutputDebugString)与临时目录 ssm_dbg.log
-// (排查日期编辑问题用,稳定后移除)
+// 诊断日志:仅 Debug 构建生效(Debug 下同时输出到 VS 输出窗口与
+// %TEMP%\ssm_dbg.log);Release 下为空实现,零输出零开销
+#ifdef _DEBUG
 static void DbgLog(const wchar_t* fmt, ...)
 {
     wchar_t buf[512];
@@ -32,6 +33,9 @@ static void DbgLog(const wchar_t* fmt, ...)
     fwprintf(f, L"%s\n", buf);
     fclose(f);
 }
+#else
+static void DbgLog(const wchar_t*, ...) { }
+#endif
 
 BEGIN_MESSAGE_MAP(CImportDlg, CDialog)
     ON_WM_DESTROY()
