@@ -49,6 +49,20 @@ enum StrId {
     S_IMG_FILTER,     // 文件选择过滤器描述
     S_DATE_TITLE,     // 修改日期对话框标题
     S_BTN_OK,         // 确定(不能叫 S_OK,与 COM 宏冲突)
+    S_EXPORT_BTN,     // 导出…
+    S_EXPORT_TITLE,   // 导出 — %s
+    S_EXPORT_CAP,     // 弹窗标题"导出"
+    S_NO_FFMPEG,      // 未检测到 ffmpeg 提示(含下载地址)
+    S_OPEN_DL_PAGE,   // 打开下载页
+    S_NO_ENCODER,     // ffmpeg 缺少 AV1 编码器提示
+    S_PICK_DIR,       // 选择导出目录
+    S_EXPORT_STATUS,  // 导出中 %d / %d
+    S_EXPORT_CURRENT, // 当前: %s
+    S_EXPORT_DONE,    // 导出完成: 成功 %d,失败 %d
+    S_EXPORT_CANCELLED, // 已取消: 完成 %d,失败 %d
+    S_STOP_BTN,       // 取消导出
+    S_FAILS_HEAD,     // 失败(%d):
+    S_EXPORT_DIR_FAIL, // 无法创建输出目录: %s
 };
 
 namespace I18n

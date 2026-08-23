@@ -2,7 +2,11 @@
 #include "ui/Theme.h"
 #include "ui/I18n.h"
 #include "ui/ImportDlg.h"
+#include "ui/ExportDlg.h"
+#include "core/Exporter.h"
 #include "resource.h"
+
+#include <shellapi.h>
 
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
     ON_WM_CREATE()
@@ -12,6 +16,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
     ON_LBN_SELCHANGE(IDC_GAME_LIST, OnSelChangeGame)
     ON_COMMAND(ID_VIEW_REFRESH, OnRefresh)
     ON_BN_CLICKED(IDC_BTN_IMPORT, OnImport)
+    ON_BN_CLICKED(IDC_BTN_EXPORT, OnExport)
     ON_BN_CLICKED(IDC_BTN_LANG, OnLangToggle)
     ON_MESSAGE(WM_SHOTS_CHANGED, OnShotsChanged)
 END_MESSAGE_MAP()
@@ -40,6 +45,11 @@ int CMainFrame::OnCreate(LPCREATESTRUCT cs)
     m_btnImport.Create(I18n::T(S_IMPORT_BTN), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                        CRect(0, 0, 0, 0), this, IDC_BTN_IMPORT);
     m_btnImport.SetFont(&Theme::Font());
+
+    // 导出按钮(导入右侧)
+    m_btnExport.Create(I18n::T(S_EXPORT_BTN), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                       CRect(0, 0, 0, 0), this, IDC_BTN_EXPORT);
+    m_btnExport.SetFont(&Theme::Font());
 
     // 语言切换按钮(导入左侧):显示当前语言名,点击中英互换
     m_btnLang.Create(I18n::LangName(), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
@@ -102,6 +112,7 @@ void CMainFrame::OnLangToggle()
     I18n::Toggle();                       // 切换并持久化
     SetWindowText(I18n::T(S_TITLE));      // 窗口标题
     m_btnImport.SetWindowText(I18n::T(S_IMPORT_BTN));
+    m_btnExport.SetWindowText(I18n::T(S_EXPORT_BTN));
     m_btnLang.SetWindowText(I18n::LangName());
     RefreshHeaderText();                  // 顶栏统计(用缓存,免重扫)
 
@@ -110,20 +121,66 @@ void CMainFrame::OnLangToggle()
     m_grid.Invalidate(FALSE);
 }
 
+void CMainFrame::OnExport()
+{
+    // 需先选中一个游戏
+    int sel = m_gameList.GetCurSel();
+    if (sel < 0 || static_cast<size_t>(sel) >= m_store.Games().size())
+    {
+        MessageBox(I18n::T(S_SELECT_FIRST), I18n::T(S_EXPORT_CAP), MB_ICONINFORMATION);
+        return;
+    }
+
+    // ① 定位 ffmpeg
+    CString ffmpeg;
+    if (!Exporter::LocateFfmpeg(ffmpeg))
+    {
+        // 提示下载并加入 PATH;"是"直接打开下载页
+        if (MessageBox(I18n::T(S_NO_FFMPEG), I18n::T(S_EXPORT_CAP),
+                       MB_YESNO | MB_ICONWARNING) == IDYES)
+        {
+            ::ShellExecute(nullptr, L"open",
+                           L"https://www.gyan.dev/ffmpeg/builds/",
+                           nullptr, nullptr, SW_SHOW);
+        }
+        return;
+    }
+
+    // ② 探测 AV1 编码器(选目录之前,避免白选)
+    CString encoder = Exporter::ProbeEncoder(ffmpeg);
+    if (encoder.IsEmpty())
+    {
+        MessageBox(I18n::T(S_NO_ENCODER), I18n::T(S_EXPORT_CAP), MB_ICONERROR);
+        return;
+    }
+
+    // ③ 选择目标根目录
+    CString dstRoot;
+    if (!Exporter::PickFolder(GetSafeHwnd(), dstRoot))
+        return; // 用户取消
+
+    // ④ 导出进度对话框
+    const GameShots& game = m_store.Games()[sel];
+    CExportDlg dlg(&game, ffmpeg, encoder, dstRoot, this);
+    dlg.DoModal(); // 导出只写目标目录,不触碰 Steam 目录,无需刷新
+}
+
 void CMainFrame::LayoutChildren()
 {
     CRect rc;
     GetClientRect(rc);
 
-    // 右侧两个按钮:语言(70px)在最右,导入(100px)在其左;标题文本让出位置
+    // 右侧三个按钮:语言(70)最右,导出(100)居中,导入(100)在左;标题让出位置
     int btnH = 26, btnPad = 8, gap = 6;
-    int langW = 70, importW = 100;
+    int langW = 70, expW = 100, impW = 100;
 
     int xLang   = rc.Width() - btnPad - langW;
-    int xImport = xLang - gap - importW;
+    int xExport = xLang - gap - expW;
+    int xImport = xExport - gap - impW;
 
     m_header.MoveWindow(0, 0, xImport - btnPad, kHeaderH);
-    m_btnImport.MoveWindow(xImport, (kHeaderH - btnH) / 2, importW, btnH);
+    m_btnImport.MoveWindow(xImport, (kHeaderH - btnH) / 2, impW, btnH);
+    m_btnExport.MoveWindow(xExport, (kHeaderH - btnH) / 2, expW, btnH);
     m_btnLang.MoveWindow(xLang, (kHeaderH - btnH) / 2, langW, btnH);
 
     m_gameList.MoveWindow(0, kHeaderH, kListWidth, rc.Height() - kHeaderH);

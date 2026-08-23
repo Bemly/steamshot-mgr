@@ -17,6 +17,7 @@ A Steam screenshot manager written in **pure MFC** (no third-party UI libraries)
 | Browse / preview / scan | **Read-only**: files opened with `GENERIC_READ` only, registry with `KEY_READ` only, caches stay in memory |
 | Import | **Explicit write**: files are written to the game's `screenshots\` and `thumbnails\` only after clicking Done **and confirming twice-checked dialog** |
 | Delete | **Explicit write**: deletion requires confirmation and removes both the full image and its thumbnail |
+| Export | **Explicit write**: writes only to the user-chosen destination folder; the Steam directories are never touched |
 
 > During import, converted images are staged in `<Steam>\userdata\<user>\760\remote\tmp\` on disk to avoid holding large bitmaps in memory; leftovers are cleaned up automatically when you cancel or a conversion fails.
 > Note: imported shots appear immediately in this tool; the Steam client itself may need a restart to pick them up.
@@ -47,11 +48,22 @@ A Steam screenshot manager written in **pure MFC** (no third-party UI libraries)
 - **Edit date**: double-click a generated file name to edit it in place with a date-time control (`yyyy-MM-dd HH:mm:ss`); Enter commits, Esc cancels, clicking elsewhere commits; the name regenerates and re-resolves collisions.
 - **Finish**: clicking Done shows a confirmation dialog (target game + count); after confirming, files are moved into `screenshots\` and matching `thumbnails\` are generated; the main view refreshes instantly.
 
+### Export
+
+- Entry point: the **[Export…]** button to the right of Import (select a game on the left first).
+- **Requires ffmpeg**: on click, ffmpeg is looked up in `PATH`; if missing, a dialog offers the download page (one click to open). A ffmpeg build without an AV1 encoder (`libsvtav1` or `libaom-av1` — the gyan.dev full build has both) is reported as well.
+- **Output location**: pick any target folder; a sub-folder named after the game is created inside (NTFS-illegal characters `\ / : * ? " < > |` are transliterated to full-width).
+- **Format & naming**: every screenshot is converted to **AVIF** via ffmpeg (CRF 25, ≈60% compression), named after the screenshot timestamp `YYYY-MM-DD-HH-MM-SS.avif`; same-second collisions roll forward +1 second — nothing is ever overwritten.
+- **File times**: after export, creation/modification times are set to the timestamp in the file name.
+- **Dynamic concurrency**: starts with 2 ffmpeg processes and auto-scales between 1 and the logical core count based on CPU utilization (<90% add, >98% drop) to keep the CPU just saturated.
+- **Progress & cancel**: live progress (done/total, current file) and a failure list; [Cancel export] kills running jobs instantly and summarizes what was finished.
+
 ## Requirements
 
 - Windows 10/11 x64
 - Visual Studio 2026 (v145 toolset, MFC shared DLL) + Windows SDK 10.0.26100 or later
 - Runtime depends on MFC shared DLLs (VS2026 redistributables)
+- **Export feature** requires [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) (full build) with its folder added to `PATH`
 
 Environment check during development: MFC/ATL shipped with VS2026 is the latest version (`_MFC_VER 0x0E00`) with complete x86+x64 libraries.
 
@@ -73,13 +85,16 @@ steamshot-mgr/
    │  ├─ GameCatalog.*           # AppID→game name (appmanifest), App <id> fallback
    │  ├─ ScreenshotStore.*       # Scan shots, parse timestamps, sort desc
    │  ├─ ImageImporter.*         # JPEG conversion/compression (quality→size)/warnings
-   │  └─ ShotNameGen.*           # Standard name generation + second-rolling dedupe
+   │  ├─ ShotNameGen.*           # Standard name generation + second-rolling dedupe
+   │  └─ Exporter.*              # ffmpeg locate/encoder probe/AVIF export/file times
    └─ ui/
       ├─ Theme.*                 # Steam dark palette & fonts
+      ├─ I18n.*                  # EN/中文 UI language (system default, switchable)
       ├─ GameListCtrl.*          # Owner-drawn game list
       ├─ ThumbGridView.*         # Virtualized thumb grid (bg decode+LRU+context menu)
       ├─ PreviewDlg.*            # Full-size preview (keyboard/click navigation)
-      └─ ImportDlg.*             # Import dialog (drop/convert/rename/confirm)
+      ├─ ImportDlg.*             # Import dialog (drop/convert/rename/confirm)
+      └─ ExportDlg.*             # Export progress (dynamic concurrency/cancel/failures)
 ```
 
 ## Build & Run
@@ -108,6 +123,8 @@ Or via MSBuild:
 | Drop files / [Browse] in dialog | Add pictures; conversion & compression run in background |
 | Double-click a generated file name | Edit date-time; name regenerates automatically |
 | [Done] in dialog | Write to `screenshots\` + `thumbnails\` after confirmation |
+| Top-right [Export…] | Detect ffmpeg → pick destination → batch-convert to AVIF under a `game-name\` sub-folder |
+| [Cancel export] in progress | Kill running jobs, keep finished ones, show summary |
 | `Ctrl+R` in main window | Rescan screenshots |
 | Resize window | Grid columns adapt |
 

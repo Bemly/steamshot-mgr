@@ -48,6 +48,22 @@ namespace
                                L"Images|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff;*.webp|All files|*.*||" },
         /* S_DATE_TITLE   */ { L"修改日期",                     L"Edit Date" },
         /* S_BTN_OK       */ { L"确定",                         L"OK" },
+        /* S_EXPORT_BTN   */ { L"导出…",                        L"Export…" },
+        /* S_EXPORT_TITLE */ { L"导出 — %s",                    L"Export — %s" },
+        /* S_EXPORT_CAP   */ { L"导出",                         L"Export" },
+        /* S_NO_FFMPEG    */ { L"未检测到 ffmpeg。\n\n请下载 ffmpeg 并将其所在目录加入 PATH 环境变量后重试。\n\n下载地址: https://www.gyan.dev/ffmpeg/builds/",
+                               L"ffmpeg was not found.\n\nPlease download ffmpeg and add its folder to the PATH environment variable, then try again.\n\nDownload: https://www.gyan.dev/ffmpeg/builds/" },
+        /* S_OPEN_DL_PAGE */ { L"打开下载页",                   L"Open download page" },
+        /* S_NO_ENCODER   */ { L"当前 ffmpeg 缺少 AV1 编码器(需要 libsvtav1 或 libaom-av1)。\n\n请更换完整版 ffmpeg 构建(gyan.dev full 版即可)后重试。",
+                               L"The ffmpeg on this machine lacks an AV1 encoder (libsvtav1 or libaom-av1 required).\n\nPlease switch to a full ffmpeg build (e.g. gyan.dev full build) and try again." },
+        /* S_PICK_DIR     */ { L"选择导出目录",                  L"Choose export folder" },
+        /* S_EXPORT_STATUS*/ { L"导出中  %d / %d",               L"Exporting  %d / %d" },
+        /* S_EXPORT_CURRENT*/{ L"当前: %s",                      L"Current: %s" },
+        /* S_EXPORT_DONE  */ { L"导出完成: 成功 %d,失败 %d",     L"Export finished: %d succeeded, %d failed" },
+        /* S_EXPORT_CANCELLED*/{ L"已取消: 完成 %d,失败 %d",      L"Cancelled: %d done, %d failed" },
+        /* S_STOP_BTN     */ { L"取消导出",                     L"Cancel export" },
+        /* S_FAILS_HEAD   */ { L"失败(%d):",                    L"Failed (%d):" },
+        /* S_EXPORT_DIR_FAIL*/{ L"无法创建输出目录:\n%s",         L"Cannot create output folder:\n%s" },
     };
 
     constexpr int kCount = sizeof(kTable) / sizeof(kTable[0]);
