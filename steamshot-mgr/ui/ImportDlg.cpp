@@ -4,6 +4,34 @@
 #include "../resource.h"
 
 #include <process.h>
+#include <cstdarg>
+#include <cstdio>
+
+// 诊断日志:同时输出到 VS 输出窗口(OutputDebugString)与临时目录 ssm_dbg.log
+// (排查日期编辑问题用,稳定后移除)
+static void DbgLog(const wchar_t* fmt, ...)
+{
+    wchar_t buf[512];
+    va_list args;
+    va_start(args, fmt);
+    _vsnwprintf_s(buf, _TRUNCATE, fmt, args);
+    va_end(args);
+
+    ::OutputDebugStringW(buf);
+    ::OutputDebugStringW(L"\n");
+
+    wchar_t path[MAX_PATH];
+    ::GetTempPathW(MAX_PATH, path);
+    wcscat_s(path, L"ssm_dbg.log");
+    FILE* f = nullptr;
+    if (_wfopen_s(&f, path, L"a, ccs=UTF-8") != 0 || !f)
+        return;
+    SYSTEMTIME st;
+    ::GetLocalTime(&st);
+    fwprintf(f, L"[%02d:%02d:%02d.%03d] ", st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+    fwprintf(f, L"%s\n", buf);
+    fclose(f);
+}
 
 BEGIN_MESSAGE_MAP(CImportDlg, CDialog)
     ON_WM_DESTROY()
@@ -451,22 +479,20 @@ void CImportDlg::OnListDblClk()
     BOOL outside = FALSE;
     int idx = m_list.ItemFromPoint(listPt, outside);
 
-    wchar_t dbg[256];
-    swprintf_s(dbg, L"[导入] 列表双击: listPt=(%d,%d) idx=%d outside=%d\n",
-               listPt.x, listPt.y, idx, outside ? 1 : 0);
-    ::OutputDebugString(dbg);
+    DbgLog(L"双击: listPt=(%d,%d) idx=%d outside=%d", listPt.x, listPt.y, idx, outside ? 1 : 0);
 
     if (outside || idx < 0 || idx >= static_cast<int>(m_items.size()))
         return;
 
     if (FileNameRect(idx).PtInRect(listPt))
     {
-        ::OutputDebugString(L"[导入] 命中文件名区域,进入日期编辑\n");
+        DbgLog(L"命中文件名区域, 弹出日期编辑, 行=%d 当前名=%s", idx,
+               static_cast<LPCTSTR>(m_items[idx]->FileName));
         BeginDateEdit(idx);
     }
     else
     {
-        ::OutputDebugString(L"[导入] 未命中文件名区域\n");
+        DbgLog(L"未命中文件名区域");
     }
 }
 
@@ -474,13 +500,26 @@ void CImportDlg::BeginDateEdit(int index)
 {
     // 弹出"修改日期"子对话框:确定后才改文件名,取消则不动
     Item& item = *m_items[index];
+    CString oldName = item.FileName;
+    COleDateTime oldTime = item.Time;
+    DbgLog(L"BeginDateEdit 进入: index=%d old=%s time=%04d-%02d-%02d %02d:%02d:%02d",
+           index, static_cast<LPCTSTR>(oldName),
+           oldTime.GetYear(), oldTime.GetMonth(), oldTime.GetDay(),
+           oldTime.GetHour(), oldTime.GetMinute(), oldTime.GetSecond());
+
     CDateEditDlg dlg(item.Time, this);
-    if (dlg.DoModal() != IDOK)
+    INT_PTR ret = dlg.DoModal();
+    DbgLog(L"DoModal 返回=%Id, dlg.m_time=%04d-%02d-%02d %02d:%02d:%02d",
+           ret,
+           dlg.m_time.GetYear(), dlg.m_time.GetMonth(), dlg.m_time.GetDay(),
+           dlg.m_time.GetHour(), dlg.m_time.GetMinute(), dlg.m_time.GetSecond());
+    if (ret != IDOK)
         return; // 用户取消,文件名保持不变
 
     item.Time = dlg.m_time;
     // 以新时间重新生成唯一文件名(释放旧名)
     item.FileName = m_nameGen->Regenerate(dlg.m_time, item.FileName);
+    DbgLog(L"Regenerate 完成: new=%s", static_cast<LPCTSTR>(item.FileName));
 
     // 重绘该行
     m_editIndex = index;
@@ -651,21 +690,30 @@ BOOL CDateEditDlg::OnInitDialog()
 
     // DTP:自定义格式同时显示日期与时间;带下拉日历(资源默认样式)
     auto* dtp = static_cast<CDateTimeCtrl*>(GetDlgItem(IDC_IMP_DATE));
+    DbgLog(L"DateEdit OnInitDialog: dtp=%p", static_cast<void*>(dtp ? dtp->GetSafeHwnd() : nullptr));
     if (dtp)
     {
-        dtp->SetFormat(L"yyyy-MM-dd HH:mm:ss");
+        BOOL fmtOk = dtp->SetFormat(L"yyyy-MM-dd HH:mm:ss");
         dtp->SetFont(&Theme::Font());
         dtp->SetTime(m_time);
+        DbgLog(L"DTP SetFormat=%d SetTime 完成", fmtOk);
     }
     return TRUE;
 }
 
 void CDateEditDlg::OnOK()
 {
-    // 关键:确定时把控件当前值读回 m_time,否则调用方拿到的仍是进入时的旧时间
+    // 确定时把控件当前值读回 m_time
     auto* dtp = static_cast<CDateTimeCtrl*>(GetDlgItem(IDC_IMP_DATE));
     COleDateTime t;
-    if (dtp && dtp->GetTime(t) == GDT_VALID)
+    DWORD gt = dtp ? dtp->GetTime(t) : (DWORD)GDT_ERROR;
+    DbgLog(L"OnOK 进入: GetTime=%lu 值=%04d-%02d-%02d %02d:%02d:%02d status=%d",
+           gt, t.GetYear(), t.GetMonth(), t.GetDay(),
+           t.GetHour(), t.GetMinute(), t.GetSecond(), (int)t.GetStatus());
+
+    // 实测:自定义格式(yyyy-MM-dd HH:mm:ss)下控件可能返回 GDT_NONE(1)
+    // 但 SYSTEMTIME 已是用户修改后的有效值,因此状态有效即采纳
+    if (gt == GDT_VALID || t.GetStatus() == COleDateTime::valid)
         m_time = t;
     EndDialog(IDOK);
 }
