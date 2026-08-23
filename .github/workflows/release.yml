@@ -73,7 +73,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $date = Get-Date -Format 'yy.MM.dd'   # 例: 26.08.22
+          # 用北京时间计算日期(runner 默认 UTC,会比本地日期慢一天)
+          $date = (Get-Date).ToUniversalTime().AddHours(8).ToString('yy.MM.dd')   # 例: 26.08.22
           $tag  = "v$date"
           $n    = 2
           # 标签已存在则追加序号: v26.08.22.2、v26.08.22.3 …
